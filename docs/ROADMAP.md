@@ -1,0 +1,19 @@
+# ROADMAP — PI-CORE
+
+> In BMAD mode, phases below are **epic seeds** (see `docs/BMAD-INTEGRATION.md`); the authoritative backlog becomes the BMAD epics/stories. Keep this table as the high-level status view.
+
+Update the Status column when a phase completes (with date and PR/commit). Each phase has a prompt in `docs/phases/`.
+
+> **BMAD Stage 1 (planning) in progress** — since 2026-10-15: Stage 0 verified (BMAD 6.12.3), step 1 project-context done. Next: PRD. No phase is `done` yet; the table below stays `not started` until a phase's epics/stories are delivered.
+
+| Phase | Goal | Prompt | Status |
+|---|---|---|---|
+| 0 | Foundation: repo, monorepo tooling, CI, Cloudflare staging "hello", ADRs, verified commands | `docs/phases/phase-0-foundation.md` | not started |
+| 1 | Database, org model seed, permission catalog, `can()` + tests | `docs/phases/phase-1-data-and-rbac.md` | not started |
+| 2 | Google auth, domain allowlist, invite-only, sessions (web + mobile-ready), bootstrap super admin | `docs/phases/phase-2-auth.md` | not started |
+| 3 | Core API + admin website (Dashboard, Members, Periods, Roles, Assignments, Settings) | `docs/phases/phase-3-api-and-admin-web.md` | not started |
+| 4 | Native mobile app (Expo) per Figma | `docs/phases/phase-4-mobile-app.md` | not started |
+| 5 | OIDC provider + Integrations screen + PI-NEXUS contract | `docs/phases/phase-5-oidc-integrations.md` | not started |
+| 6 | Hardening, audit UI, e2e, production deploy, store builds | `docs/phases/phase-6-hardening-release.md` | not started |
+
+Deferred (not in MVP): Reports tab, Events, Notifications, Panitia (event-scoped), legacy data import, optional TOTP step-up.
