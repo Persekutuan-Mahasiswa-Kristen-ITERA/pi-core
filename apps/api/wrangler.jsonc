@@ -1,30 +1,32 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "pi-core-api",
-  "main": "src/index.ts",
-  "compatibility_date": "2026-10-15",
-  "compatibility_flags": ["nodejs_compat"],
-  "observability": {
-    "enabled": true
-  },
-  "hyperdrive": [
-    {
-      "binding": "HYPERDRIVE",
-      "id": "REPLACE_WITH_HYPERDRIVE_ID"
-    }
-  ],
-  "env": {
-    "staging": {
-      "name": "pi-core-api-staging",
-      "vars": {
-        "ENVIRONMENT": "staging"
-      },
-      "hyperdrive": [
-        {
-          "binding": "HYPERDRIVE",
-          "id": "REPLACE_WITH_HYPERDRIVE_ID"
-        }
-      ]
-    }
-  }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "pi-core-api",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-10-15",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"observability": {
+		"enabled": true
+	},
+	"hyperdrive": [
+		{
+			"binding": "HYPERDRIVE",
+			"id": "afcb66f59a424787b5117c596edd29dc"
+		}
+	],
+	"env": {
+		"staging": {
+			"name": "pi-core-api-staging",
+			"vars": {
+				"ENVIRONMENT": "staging"
+			},
+			"hyperdrive": [
+				{
+					"binding": "HYPERDRIVE",
+					"id": "afcb66f59a424787b5117c596edd29dc"
+				}
+			]
+		}
+	}
 }
