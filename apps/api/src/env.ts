@@ -36,6 +36,11 @@ export interface AppEnv {
      * client is per request (ADR-0015). Set by `authMiddleware`.
      */
     auth?: AuthInstance;
+    /**
+     * The signed-in member's email, set alongside `actor`. Kept separate because it is display data
+     * (the sign-in page shows it) while `actor` is authorization data.
+     */
+    sessionEmail?: string;
     /** Correlation id, propagated to logs and audit rows. */
     requestId?: string;
   };

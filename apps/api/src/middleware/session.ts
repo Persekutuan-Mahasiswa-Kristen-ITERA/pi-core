@@ -43,6 +43,7 @@ export const sessionMiddleware = createMiddleware<AppEnv>(async (c, next) => {
         // `loadActor` returns the Actor plus the facts behind it (active period, which assignments
         // conferred roles) — the route gets the Actor; the rest is diagnostic.
         if (loaded !== null) c.set("actor", loaded.actor);
+        c.set("sessionEmail", admission.member?.email ?? session.user.email);
       } else {
         await db.delete(authSessions).where(eq(authSessions.id, session.session.id));
       }

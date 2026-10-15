@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "./env";
 import { authRoutes } from "./routes/auth";
 import { healthRoutes } from "./routes/health";
+import { signInPageRoutes } from "./routes/sign-in-page";
 
 /**
  * The PI-CORE API Worker (ADR-0013, spine AD-17).
@@ -26,6 +27,9 @@ app.route("/api/v1", healthRoutes);
 // Better Auth owns /api/auth/* (ADR-0007). Mounted as a sub-app so nested paths like
 // /api/auth/sign-in/social are covered — see routes/auth.ts.
 app.route("/api/auth", authRoutes);
+
+// Minimal same-origin sign-in page — a staging placeholder for the Epic 4 UI (see the file header).
+app.route("/sign-in", signInPageRoutes);
 
 app.notFound((c) => c.json({ error: { code: "not_found", message: "Not found" } }, 404));
 
