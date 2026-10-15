@@ -5,10 +5,10 @@ Single source of truth for "where are we". Keep it short and factual. Never writ
 ## Current
 - **Mode:** BMAD   <!-- BMAD | PHASES (fallback) -->
 - **BMAD version / install status:** installed — **6.12.3** (core + bmm, built-in) + bmb v2.2.2, cis v0.3.2, tea v1.27.2 (external); installed 2026-10-14; `ides: [hermes, pi]`; output `_bmad-output/`
-- **BMAD stage / current step:** Stage 1 — planning chain. Step 1 (project-context) **done**; step 2 (brief) **done**; step 3 (**PRD**) **done — approved by owner 2026-10-15**. Next = step 4 (UX via Figma MCP) → step 5 (architecture, review gate)
+- **BMAD stage / current step:** Stage 1 — planning chain. Steps 1–3 **done** (project-context, brief, **PRD approved**); step 4 (**UX**) **done**. Next = step 5 (**architecture**, review gate)
 - **Current phase/epic:** 0 / Epic 1 (Foundation)
 - **BMAD sprint/story status file path:** (set after sprint planning)
-- **Status:** blocked   <!-- not started | in progress | blocked | awaiting owner review | done -->
+- **Status:** in progress   <!-- not started | in progress | blocked | awaiting owner review | done -->
 - **Last updated:** 2026-10-15, by Hermes (implementation agent)
 
 ## Done (verified)
@@ -19,16 +19,17 @@ Single source of truth for "where are we". Keep it short and factual. Never writ
 - **Stage 1 step 3 — PRD (approved).** → `_bmad-output/planning-artifacts/prds/prd-PMK-CORE-2026-10-15/prd.md` (`status: final`). Owner answered the 10 open questions (2026-10-15) and approved; answers folded into the PRD.
 - **Owner decisions recorded as ADRs:** ADR-0002 (roles/access: dept & bureau heads → `organization_admin`), ADR-0003 (staging on `*.workers.dev`, no paid Workers/DNS), ADR-0004 (iOS dev-only, no paid Apple account), ADR-0005 (email allowlist = ITERA domains only), ADR-0006 (default UI language Bahasa Indonesia).
 - **Docs synced** to the ADRs: `docs/ARCHITECTURE.md` (§3, §4, §5, §8, §10), `docs/DESIGN.md` (D5, Create/Edit Member).
+- **Stage 1 step 4 — UX (Figma reconciliation).** Read the Figma file via the MCP (page `0:1`, file `18T2e8GH2l2zTzn7vkP1ax`); replaced *(approx.)* tokens in `docs/DESIGN.md` with **exact** values (palette, Manrope/Poppins/Inter, radii, shadows, spacing); mapped all 12 frames to screens with node IDs; designed the missing Create/Edit Member screen from tokens. The file has no Figma variables/styles (raw values).
 - **Git repo initialized** (`git init -b main`); commits made.
 
 ## Environment (verified 2026-10-15)
 Node v26.7.0 · pnpm 10.20.0 · npm 11.19.0 · git 2.43.0 · wrangler 4.151.0 (via `npx`) · uv 0.12.2 · Hermes Agent v0.21.6+667 · BMAD 6.12.3. Figma MCP: server enabled + OAuth tokens present (`~/.hermes/mcp-tokens/figma.*`); project skills loaded (`[project]`).
 
 ## In progress / next concrete step
-**Stage 1 step 4 — UX**: reconcile `docs/DESIGN.md` with the Figma file via the Figma MCP (skill `figma-to-code`), replace *(approx.)* tokens with exact values, and confirm the screen inventory. **Blocked**: the Figma MCP tools are not reachable from the agent session (see Blockers).
+**Stage 1 step 5 — architecture**: start from `docs/ARCHITECTURE.md`, challenge it constructively, verify the Cloudflare / Hyperdrive / OpenNext / Expo / auth-library assumptions against current official docs, record changes as ADRs, and sync both documents. **Review gate** (owner approves the architecture). See `docs/BMAD-INTEGRATION.md` §Stage 1.
 
 ## Blockers needing the owner (collect here, ask in one batch)
-1. **Figma MCP is registered but NOT authorised** (root cause, verified 2026-10-15). `hermes mcp list` shows `figma ✓ enabled`, and `~/.hermes/mcp-tokens/` holds only the DCR **client registration** (`figma.client.json`) and server metadata (`figma.meta.json`) — there is **no access/refresh token**. Every connect attempt logs *"no cached tokens found"*, the server is **parked**, and `MCP: registered 0 tool(s) from 0 server(s)` (`~/.hermes/logs/agent.log`). `hermes mcp add` performed dynamic client registration, but the **user authorisation step never completed**. **Fix (owner, interactive):** run `hermes mcp login figma` in a terminal and finish the browser flow (headless alternative: `hermes mcp login figma --flow device`), then restart the session; the 46 `mcp__figma__*` tools will load and step 4 can proceed.
+1. ~~Figma MCP not authorised~~ — **resolved 2026-10-15**: owner completed `hermes mcp login figma`; `hermes mcp test figma` → **✓ Connected, 42 tools**; the session registered **46 `mcp__figma__*` tools** (`logs/agent.log`). Step 4 (UX) is now done.
 2. ~~Confirm ADR-0002 interpretation~~ — **confirmed by the owner 2026-10-15**: all Kepala Departemen + Kepala Biro hold `organization_admin` (O-scope, org-wide).
 
 ## Decisions log (links to ADRs)
@@ -45,6 +46,7 @@ Node v26.7.0 · pnpm 10.20.0 · npm 11.19.0 · git 2.43.0 · wrangler 4.151.0 (v
 - 2026-10-15: **confirmed ADR-0002** — all Kepala Departemen + Kepala Biro hold `organization_admin` (O-scope).
 
 ## Session notes (newest first)
+- **2026-10-15 (Hermes), session 5:** Figma MCP confirmed connected (`✓ Connected, 42 tools`). Ran Stage 1 step 4 (UX): read the Figma file via MCP, replaced the *(approx.)* tokens in `docs/DESIGN.md` with exact values, mapped all 12 frames (node IDs) to screens, and designed the missing Create/Edit Member screen. Next: step 5 (architecture, review gate).
 - **2026-10-15 (Hermes), session 4:** Owner confirmed ADR-0002 (org-wide admin) and restarted the session. Diagnosed the Figma MCP root cause: the server is registered but **not authorised** (only DCR client + metadata cached, no access token) → parked, 0 tools. Step 4 (UX) stays blocked pending `hermes mcp login figma`.
 - **2026-10-15 (Hermes), session 3:** Owner approved the PRD and answered all 10 open questions. Folded answers into `prd.md` (`status: final`), wrote ADR-0002…ADR-0006, synced `ARCHITECTURE.md`/`DESIGN.md`. Blocker: Figma MCP tools not reachable from this session → step 4 (UX) pending.
 - **2026-10-15 (Hermes), session 2:** Figma MCP + project skills confirmed active. Ran Stage 1 step 2 (lean brief) and step 3 (PRD draft) in Fast path, answering from the kit docs; both written under `_bmad-output/planning-artifacts/` with memlogs. Status → `awaiting owner review` at the PRD gate. Blockers cleared.
