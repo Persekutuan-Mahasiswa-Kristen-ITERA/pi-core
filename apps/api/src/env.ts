@@ -1,3 +1,5 @@
+import type { Actor } from "@pi-core/shared";
+
 /** Cloudflare Hyperdrive binding, narrowed to what `@pi-core/db` needs. */
 export interface HyperdriveBinding {
   connectionString: string;
@@ -14,4 +16,13 @@ export interface Env {
 /** Hono environment for this app. */
 export interface AppEnv {
   Bindings: Env;
+  Variables: {
+    /**
+     * The resolved actor. Set by the session middleware (Epic 3) and read by `requirePermission`
+     * (FR-25); absent until then, which makes guarded routes answer 401.
+     */
+    actor?: Actor;
+    /** Correlation id, propagated to logs and audit rows. */
+    requestId?: string;
+  };
 }

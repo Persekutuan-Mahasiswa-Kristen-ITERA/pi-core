@@ -31,7 +31,30 @@ end $$;
 \echo '--- 4. the row survived both attempts ---'
 select 'row intact: ' || count(*)::text from audit_logs where request_id = 'verify-run' and action = 'verify.insert';
 
-\echo '--- 5. system_grants rejects a duplicate (member, role) ---'
+\echo '--- 5. FR-28: the last super_admin cannot be deleted (trigger) ---'
+do $$
+declare
+  m uuid;
+  others int;
+begin
+  select count(*) into others from system_grants where role_key = 'super_admin';
+  if others > 0 then
+    raise notice 'SKIP: % super_admin row(s) already present; the behaviour is proved by scripts/verify-escalation.ts', others;
+    return;
+  end if;
+  insert into members (email, full_name)
+  values ('verify-fr28@student.itera.ac.id', 'Verify FR28')
+  returning id into m;
+  insert into system_grants (member_id, role_key) values (m, 'super_admin');
+  begin
+    delete from system_grants where member_id = m and role_key = 'super_admin';
+    raise exception 'FAIL: the last super_admin was deleted';
+  exception
+    when restrict_violation then raise notice 'PASS: last super_admin protected by the trigger';
+  end;
+end $$;
+
+\echo '--- 6. system_grants rejects a duplicate (member, role) ---'
 do $$
 declare
   m uuid;
@@ -48,7 +71,7 @@ begin
   end;
 end $$;
 
-\echo '--- 6. system_grants rejects an unknown role key ---'
+\echo '--- 7. system_grants rejects an unknown role key ---'
 do $$
 declare
   m uuid;
@@ -64,14 +87,14 @@ begin
   end;
 end $$;
 
-\echo '--- 7. RLS enabled and 0 policies on every table (NFR-7) ---'
+\echo '--- 8. RLS enabled and 0 policies on every table (NFR-7) ---'
 select 'rls_off: ' || coalesce(string_agg(c.relname, ', '), '(none — good)')
 from pg_class c join pg_namespace n on n.oid = c.relnamespace
 where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;
 select 'policies: ' || coalesce(sum((select count(*) from pg_policies p where p.schemaname='public' and p.tablename=t.tablename))::text, '0')
 from pg_tables t where t.schemaname = 'public';
 
-\echo '--- 8. table inventory ---'
+\echo '--- 9. table inventory ---'
 select 'tables: ' || string_agg(tablename, ', ' order by tablename) from pg_tables where schemaname = 'public';
 
 rollback;

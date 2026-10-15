@@ -9,8 +9,23 @@
  * `writeAudit` appends exactly one `audit_logs` row per mutation (FR-43); the table itself refuses
  * UPDATE/DELETE via the `audit_logs_append_only` trigger.
  */
-import { effectiveRoles, redactForAudit, type Actor, type AssignmentFact, type RoleKey } from "@pi-core/shared";
-import { eq, inArray, like, or } from "drizzle-orm";
+import {
+  can,
+  decideAssignmentChange,
+  decideRevokeSystemGrant,
+  DENIAL_MESSAGES,
+  effectiveRoles,
+  redactForAudit,
+  type Actor,
+  type AssignmentChangeTarget,
+  type AssignmentFact,
+  type Decision,
+  type DenialReason,
+  type PermissionKey,
+  type RoleKey,
+  type Target,
+} from "@pi-core/shared";
+import { and, eq, inArray, like, or } from "drizzle-orm";
 import type { Database } from "./client";
 import {
   assignments,
@@ -150,9 +165,14 @@ async function resolveUnitScope(
   const highestRankByUnit: Record<string, number> = {};
   for (const unit of rows) {
     const unitPath = unit.path ?? "";
+    // §3: "their own highest-ranking position in that subtree". A manager's authority over a unit
+    // comes from a position held **at that unit or above it**, so the relevant assignments are the
+    // ones whose unit is an *ancestor-or-self* of this unit (i.e. this unit's path starts with the
+    // assignment's path) — not its descendants.
     const ranks = activeAssignments
-      .filter((a) => (pathById.get(a.orgUnitId) ?? "").startsWith(unitPath))
-      .map((a) => a.positionRank);
+      .map((a) => ({ path: pathById.get(a.orgUnitId), rank: a.positionRank }))
+      .filter((a) => a.path !== undefined && unitPath.startsWith(a.path))
+      .map((a) => a.rank);
     if (ranks.length > 0) highestRankByUnit[unit.id] = Math.min(...ranks);
   }
 
@@ -175,4 +195,156 @@ export async function writeAudit(db: Database, entry: NewAuditLog): Promise<stri
     })
     .returning({ id: auditLogs.id });
   return rows[0]!.id;
+}
+
+// ---------------------------------------------------------------------------
+// Authorized mutations — "refused AND audited" (FR-27, FR-28)
+// ---------------------------------------------------------------------------
+
+export interface AuthorizationRequest {
+  ip?: string;
+  userAgent?: string;
+  requestId?: string;
+}
+
+export type AuthorizationResult =
+  | { allowed: true }
+  | { allowed: false; reason: DenialReason; message: string; auditId: string };
+
+/**
+ * Turn a pure {@link Decision} into an enforced one: an allowed decision passes through untouched
+ * (the mutation itself is what gets audited), a refusal is **recorded** and returned with a
+ * machine-readable reason.
+ *
+ * Every route that mutates protected data must go through this or `enforcePermission`, so a denied
+ * attempt is always provable (FR-27 "refused and audited").
+ */
+export async function enforceDecision(
+  db: Database,
+  params: {
+    actor: Actor;
+    decision: Decision;
+    /** What was attempted, e.g. `assignment.manage`. */
+    action: string;
+    entityType: string;
+    entityId?: string;
+    request?: AuthorizationRequest;
+  },
+): Promise<AuthorizationResult> {
+  if (params.decision.allowed) return { allowed: true };
+
+  const { reason } = params.decision;
+  const auditId = await writeAudit(db, {
+    actorMemberId: params.actor.memberId,
+    action: "authorization.denied",
+    entityType: params.entityType,
+    entityId: params.entityId ?? null,
+    after: {
+      attempted: params.action,
+      reason,
+      message: DENIAL_MESSAGES[reason],
+      roles: params.actor.roles,
+    },
+    ip: params.request?.ip ?? null,
+    userAgent: params.request?.userAgent ?? null,
+    requestId: params.request?.requestId ?? null,
+  });
+
+  return { allowed: false, reason, message: DENIAL_MESSAGES[reason], auditId };
+}
+
+/** `can()` wrapped into a decision, so a plain permission check is audited on refusal too (FR-25). */
+export async function enforcePermission(
+  db: Database,
+  params: {
+    actor: Actor;
+    permission: PermissionKey;
+    target?: Target;
+    action: string;
+    entityType: string;
+    entityId?: string;
+    request?: AuthorizationRequest;
+  },
+): Promise<AuthorizationResult> {
+  const decision: Decision = can(params.actor, params.permission, params.target)
+    ? { allowed: true }
+    : { allowed: false, reason: "permission_not_granted" };
+  return enforceDecision(db, {
+    actor: params.actor,
+    decision,
+    action: params.action,
+    entityType: params.entityType,
+    ...(params.entityId === undefined ? {} : { entityId: params.entityId }),
+    ...(params.request === undefined ? {} : { request: params.request }),
+  });
+}
+
+/** FR-27 — the assignment-change guard (self-edit, subtree, rank), audited on refusal. */
+export async function enforceAssignmentChange(
+  db: Database,
+  params: {
+    actor: Actor;
+    target: AssignmentChangeTarget;
+    action?: string;
+    request?: AuthorizationRequest;
+  },
+): Promise<AuthorizationResult> {
+  return enforceDecision(db, {
+    actor: params.actor,
+    decision: decideAssignmentChange(params.actor, params.target),
+    action: params.action ?? "assignment.manage",
+    entityType: "assignment",
+    entityId: params.target.memberId,
+    ...(params.request === undefined ? {} : { request: params.request }),
+  });
+}
+
+/**
+ * FR-28 — revoke a `system_grants` row.
+ *
+ * The friendly pre-check here produces a clear reason and an audit row; the **enforcing** guard is
+ * the `system_grants_protect_last_super_admin` trigger, which makes the rule atomic even if two
+ * revokes race (it raises `restrict_violation`, which the caller should map to 409 Conflict).
+ */
+export async function revokeSystemGrant(
+  db: Database,
+  params: {
+    actor: Actor;
+    memberId: string;
+    roleKey: RoleKey;
+    request?: AuthorizationRequest;
+  },
+): Promise<AuthorizationResult> {
+  const holders = await db
+    .select({ memberId: systemGrants.memberId })
+    .from(systemGrants)
+    .where(eq(systemGrants.roleKey, params.roleKey));
+
+  const outcome = await enforceDecision(db, {
+    actor: params.actor,
+    decision: decideRevokeSystemGrant({
+      roleKey: params.roleKey,
+      superAdminsRemaining: holders.filter((h) => h.memberId !== params.memberId).length,
+    }),
+    action: "system_grant.revoke",
+    entityType: "system_grant",
+    entityId: params.memberId,
+    ...(params.request === undefined ? {} : { request: params.request }),
+  });
+  if (!outcome.allowed) return outcome;
+
+  await db
+    .delete(systemGrants)
+    .where(and(eq(systemGrants.memberId, params.memberId), eq(systemGrants.roleKey, params.roleKey)));
+
+  await writeAudit(db, {
+    actorMemberId: params.actor.memberId,
+    action: "system_grant.revoked",
+    entityType: "system_grant",
+    entityId: params.memberId,
+    before: { roleKey: params.roleKey },
+    requestId: params.request?.requestId ?? null,
+  });
+
+  return { allowed: true };
 }

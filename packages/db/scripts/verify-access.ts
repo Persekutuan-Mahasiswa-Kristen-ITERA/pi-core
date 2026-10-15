@@ -8,8 +8,8 @@
  *
  *   DIRECT_URL=… pnpm --filter @pi-core/db exec tsx scripts/verify-access.ts
  */
-import { can, type Actor } from "@pi-core/shared";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { can } from "@pi-core/shared";
+import { eq, inArray, sql } from "drizzle-orm";
 import { loadActor, writeAudit } from "../src/access";
 import { createDb } from "../src/client";
 import {
@@ -40,6 +40,21 @@ function check(label: string, actual: unknown, expected: unknown): void {
 }
 
 const TAG = `verify-access-${Date.now()}`;
+const KEEPER_EMAIL = "verify-keeper@student.itera.ac.id";
+
+/**
+ * FR-28 makes the *last* super_admin unremovable, so a verification run needs one that predates its
+ * own fixture — otherwise cleanup cannot delete the grant it created. Idempotent by email.
+ */
+async function ensureKeeperSuperAdmin(): Promise<string> {
+  await db.insert(members).values({ email: KEEPER_EMAIL, fullName: "Verification Keeper" }).onConflictDoNothing();
+  const [row] = await db.select({ id: members.id }).from(members).where(eq(members.email, KEEPER_EMAIL));
+  await db
+    .insert(systemGrants)
+    .values({ memberId: row!.id, roleKey: "super_admin", grantedBy: null })
+    .onConflictDoNothing();
+  return row!.id;
+}
 
 try {
   const activePeriods = await db.select({ id: periods.id }).from(periods).where(eq(periods.isActive, true));
@@ -101,6 +116,7 @@ try {
   ]);
 
   // The system grant goes to a member with NO assignment, so it cannot mask the scope assertions.
+  await ensureKeeperSuperAdmin();
   await db.insert(systemGrants).values({ memberId: grantMember!.id, roleKey: "super_admin", grantedBy: adminMember!.id });
 
   // ---- FR-31: effective roles ---------------------------------------------

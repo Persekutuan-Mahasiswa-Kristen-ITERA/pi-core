@@ -26,6 +26,9 @@ importers:
       '@pi-core/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@pi-core/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       drizzle-orm:
         specifier: ^0.45.4
         version: 0.45.4(@cloudflare/workers-types@5.20261015.1)(@types/pg@8.23.1)(pg@8.23.1)
@@ -45,6 +48,9 @@ importers:
       typescript:
         specifier: ^5.9.2
         version: 5.9.3
+      vitest:
+        specifier: ^5.0.4
+        version: 5.0.4(@types/node@22.20.5)(vite@7.3.7(@types/node@22.20.5)(terser@5.36.0)(tsx@4.23.15)(yaml@2.9.1))
       wrangler:
         specifier: ^4.0.0
         version: 4.151.0(@cloudflare/workers-types@5.20261015.1)(@types/node@22.20.5)
