@@ -19,6 +19,12 @@ describe("findRegistrationsInSource()", () => {
     expect(found.map(key).sort()).toEqual(["app GET /api/auth/*", "app POST /api/auth/*"]);
   });
 
+  it("finds a registration mounted with .all() — how a library handler is attached in Hono", () => {
+    const source = 'app.all("/api/auth/*", (c) => auth.handler(c.req.raw));';
+    const found = findRegistrationsInSource("app.ts", source);
+    expect(found.map(key)).toEqual(["app ALL /api/auth/*"]);
+  });
+
   it("finds a registration on a router-named object", () => {
     const found = findRegistrationsInSource("routes/health.ts", 'healthRoutes.get("/health", handler);');
     expect(found.map(key)).toEqual(["healthRoutes GET /health"]);

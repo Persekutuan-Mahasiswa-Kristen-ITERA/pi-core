@@ -11,8 +11,9 @@
  * router); `mountedAt` records where that router is mounted, for readers.
  */
 import type { PermissionKey } from "@pi-core/shared";
+import type { HttpMethod } from "./scan";
 
-export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+export type { HttpMethod };
 
 export interface RouteAuthorization {
   /** Path of the file under `apps/api/src/`. */

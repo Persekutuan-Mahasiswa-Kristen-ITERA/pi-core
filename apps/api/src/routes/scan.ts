@@ -19,7 +19,7 @@
 export const ROUTER_RECEIVER = /^(app|.*Routes|.*Router)$/;
 
 export const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
-export type HttpMethod = (typeof HTTP_METHODS)[number];
+export type HttpMethod = (typeof HTTP_METHODS)[number] | "ALL";
 
 export interface Registration {
   /** Path of the file under `apps/api/src/`. */
@@ -30,8 +30,8 @@ export interface Registration {
   path: string;
 }
 
-/** `app.get("/x"`, `healthRoutes.post("/y"` — a single-method registration. */
-const SINGLE = /\b([A-Za-z_$][\w$]*)\s*\.(get|post|put|patch|delete)\(\s*["'`]([^"'`]+)["'`]/g;
+/** `app.get("/x"`, `healthRoutes.post("/y"`, `app.all("/api/auth/*"` — a single-method registration. */
+const SINGLE = /\b([A-Za-z_$][\w$]*)\s*\.(get|post|put|patch|delete|all)\(\s*["'`]([^"'`]+)["'`]/g;
 
 /** `app.on(["POST", "GET"], "/api/auth/*"` — a multi-method registration. */
 const MULTI = /\b([A-Za-z_$][\w$]*)\s*\.on\(\s*\[([^\]]*)\]\s*,\s*["'`]([^"'`]+)["'`]/g;

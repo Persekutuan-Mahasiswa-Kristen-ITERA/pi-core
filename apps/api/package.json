@@ -13,6 +13,7 @@
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {
+    "@better-auth/drizzle-adapter": "~1.6.33",
     "@pi-core/db": "workspace:*",
     "@pi-core/shared": "workspace:*",
     "better-auth": "~1.6.33",
