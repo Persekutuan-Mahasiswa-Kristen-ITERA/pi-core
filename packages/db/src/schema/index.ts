@@ -6,3 +6,4 @@ export * from "./positions";
 export * from "./assignments";
 export * from "./rbac";
 export * from "./audit";
+export * from "./auth";

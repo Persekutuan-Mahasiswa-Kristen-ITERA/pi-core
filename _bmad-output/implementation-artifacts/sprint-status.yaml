@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 10-15-2026 11:20
-last_updated: 10-15-2026 21:52
+last_updated: 10-15-2026 22:13
 project: PI-CORE
 project_key: NOKEY
 tracking_system: file-system
@@ -55,7 +55,7 @@ development_status:
   epic-2-retrospective: optional
 
   epic-3: backlog
-  3-1-google-sign-in-member-linking-web: backlog
+  3-1-google-sign-in-member-linking-web: in-progress
   3-2-domain-allowlist-invite-only: backlog
   3-3-mobile-sign-in-expo: backlog
   3-4-bootstrap-first-super_admin: backlog

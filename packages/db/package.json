@@ -17,6 +17,7 @@
     "db:smoke": "tsx --env-file-if-exists=.env scripts/smoke.ts",
     "db:seed": "tsx --env-file-if-exists=.env scripts/seed.ts",
     "db:seed:rbac": "tsx --env-file-if-exists=.env scripts/seed-rbac.ts",
+    "db:seed:domains": "tsx --env-file-if-exists=.env scripts/seed-domains.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
