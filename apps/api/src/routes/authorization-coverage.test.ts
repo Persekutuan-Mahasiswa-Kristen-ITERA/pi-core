@@ -25,6 +25,7 @@ const SRC = join(import.meta.dirname, "..");
 const NON_ROUTE_CALLS: readonly string[] = [
   // Hono context reads inside middleware / handlers, not routes.
   "middleware/authorization.ts GET actor",
+  "middleware/session.ts GET requestId",
   "routes/auth.ts GET auth",
 ];
 

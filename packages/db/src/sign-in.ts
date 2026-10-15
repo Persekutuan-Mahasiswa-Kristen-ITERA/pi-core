@@ -129,3 +129,73 @@ export async function resolveSignIn(
 
   return { decision, message: GENERIC_SIGN_IN_DENIAL, auditId };
 }
+
+/**
+ * Admission for an **existing session**, re-checked on every request.
+ *
+ * Sign-in is not the only moment admission can change: a member can be deactivated, moved to
+ * `suspended`, or an email domain can be removed from the allowlist *after* a session was issued
+ * (FR-3, FR-5). So the same pure `decideSignIn` runs again here, and the caller must drop the
+ * session when it refuses. Refusals are audited exactly like sign-in refusals (FR-7).
+ *
+ * `emailVerified` comes from **our** row (`members.email_verified`, written from Google's verified
+ * claim at sign-in), not from anything the client sent.
+ */
+export async function resolveSessionAdmission(
+  db: Database,
+  memberId: string,
+  request?: AuthorizationRequest,
+): Promise<{ decision: SignInDecision; member: SignInMemberRecord | null }> {
+  const rows = await db
+    .select({
+      id: members.id,
+      email: members.email,
+      fullName: members.fullName,
+      status: members.status,
+      googleSub: members.googleSub,
+      emailVerified: members.emailVerified,
+    })
+    .from(members)
+    .where(eq(members.id, memberId))
+    .limit(1);
+
+  const row = rows[0] ?? null;
+  const member: SignInMemberRecord | null =
+    row === null
+      ? null
+      : {
+          id: row.id,
+          email: row.email,
+          fullName: row.fullName,
+          status: row.status,
+          googleSub: row.googleSub,
+        };
+
+  const allowedDomains = await loadAllowedDomains(db);
+  const decision = decideSignIn({
+    email: row?.email ?? null,
+    emailVerified: row?.emailVerified ?? false,
+    allowedDomains,
+    member: member === null ? null : { id: member.id, status: member.status, googleSub: member.googleSub },
+  });
+
+  if (!decision.allowed) {
+    await writeAudit(db, {
+      actorMemberId: member?.id ?? null,
+      action: "auth.denied",
+      entityType: "member",
+      entityId: member?.id ?? null,
+      after: {
+        stage: "session",
+        reason: decision.reason,
+        domain: row?.email ? emailDomain(row.email) : null,
+        emailVerified: row?.emailVerified === true,
+      },
+      ip: request?.ip ?? null,
+      userAgent: request?.userAgent ?? null,
+      requestId: request?.requestId ?? null,
+    });
+  }
+
+  return { decision, member };
+}

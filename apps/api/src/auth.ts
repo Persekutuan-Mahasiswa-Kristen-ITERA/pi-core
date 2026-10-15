@@ -73,7 +73,19 @@ export function createAuth(db: Database, env: Env): AuthInstance {
       },
     },
     session: { modelName: "sessions" },
-    account: { modelName: "accounts" },
+    account: {
+      modelName: "accounts",
+      /**
+       * Links a Google account to the member row that already exists for that address, which is how
+       * an invited member's first sign-in works (FR-4).
+       *
+       * `trustedProviders` is deliberately **left unset**: Better Auth defaults it to `[]`, and with
+       * an empty list linking additionally requires Google to report the address as verified
+       * (`!trusted && !emailVerified` refuses). Adding "google" here would skip that check — so NFR-1
+       * is enforced by the library rather than by us remembering to.
+       */
+      accountLinking: { enabled: true },
+    },
     verification: { modelName: "verifications" },
 
     // Our ids are uuids; Better Auth's default is an opaque string, which would not fit.
@@ -85,6 +97,13 @@ export function createAuth(db: Database, env: Env): AuthInstance {
       google: {
         clientId: env.GOOGLE_CLIENT_ID,
         clientSecret: env.GOOGLE_CLIENT_SECRET,
+        /**
+         * Invite-only (FR-4). A Google account with no matching `members` row must **not** get one:
+         * every member is created deliberately by an admin, never by signing in. With sign-up
+         * disabled Better Auth refuses instead of inserting, so `members` stays a curated list.
+         */
+        disableSignUp: true,
+        disableImplicitSignUp: true,
       },
     },
 
