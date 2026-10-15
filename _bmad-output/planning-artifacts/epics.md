@@ -1,5 +1,5 @@
 ---
-status: draft
+status: final
 stepsCompleted: [1, 2, 3, 4]
 inputDocuments:
   - _bmad-output/planning-artifacts/prds/prd-PMK-CORE-2026-10-15/prd.md

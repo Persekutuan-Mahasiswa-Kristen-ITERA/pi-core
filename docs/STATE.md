@@ -5,9 +5,9 @@ Single source of truth for "where are we". Keep it short and factual. Never writ
 ## Current
 - **Mode:** BMAD   <!-- BMAD | PHASES (fallback) -->
 - **BMAD version / install status:** installed — **6.12.3** (core + bmm, built-in) + bmb v2.2.2, cis v0.3.2, tea v1.27.2 (external); installed 2026-10-14; `ides: [hermes, pi]`; output `_bmad-output/`
-- **BMAD stage / current step:** Stage 1 — planning chain. Steps 1–5 **done** (PRD + architecture approved); step 6 (**epics & stories**) **done — at owner-review gate**. Next after approval = step 7 (readiness) → step 8 (sprint planning)
+- **BMAD stage / current step:** Stage 1 (planning) **complete** — steps 1–8 done (epics accepted; readiness gate **PASS**; sprint status generated). **At owner-review gate** (epics/stories). Next after approval = **Stage 2 delivery**: story `1-1-monorepo-scaffold` via `bmad-build`
 - **Current phase/epic:** 0 / Epic 1 (Foundation)
-- **BMAD sprint/story status file path:** (set after sprint planning)
+- **BMAD sprint/story status file path:** `_bmad-output/implementation-artifacts/sprint-status.yaml` (7 epics / 42 stories, all `backlog`)
 - **Status:** awaiting owner review   <!-- not started | in progress | blocked | awaiting owner review | done -->
 - **Last updated:** 2026-10-15, by Hermes (implementation agent)
 
@@ -22,13 +22,14 @@ Single source of truth for "where are we". Keep it short and factual. Never writ
 - **Stage 1 step 4 — UX (Figma reconciliation).** Read the Figma file via the MCP (page `0:1`, file `18T2e8GH2l2zTzn7vkP1ax`); replaced *(approx.)* tokens in `docs/DESIGN.md` with **exact** values (palette, Manrope/Poppins/Inter, radii, shadows, spacing); mapped all 12 frames to screens with node IDs; designed the missing Create/Edit Member screen from tokens. The file has no Figma variables/styles (raw values).
 - **Stage 1 step 5 — architecture (spine + verified assumptions).** → `_bmad-output/planning-artifacts/architecture/architecture-PMK-CORE-2026-10-15/ARCHITECTURE-SPINE.md` (invariants AD-1…AD-15). Verified against current official docs (2026-10-15): OpenNext supports Next.js 16 (`nodejs_compat`, 3 MiB Free worker); Workers Free limits; Hyperdrive↔Supabase (direct connection; `pg`/Drizzle); Better Auth (Google + `@better-auth/oauth-provider` + Expo plugin); Expo SDK 57 (`expo-auth-session`, `expo-secure-store`); R2 presigned URLs; Supabase Data API disable + RLS. New ADRs: **0007** (Better Auth), **0008** (Workers Free 10 ms CPU risk), **0009** (Hyperdrive/Supabase data access). `docs/ARCHITECTURE.md` §5/§8 synced.
 - **Stage 1 step 6 — epics & stories.** → `_bmad-output/planning-artifacts/epics.md` (**7 epics, 42 stories**; FR-1…FR-54 all covered; NFRs, AD-1…AD-15 and UX-DR1…8 folded in; each access-touching story carries denied-case tests in its DoD). **Owner-review gate.** ADR-0010 (Workers Free CPU mitigations: static-first UI → Hono API split → paid plan) recorded; spine AD-11 updated.
+- **Stage 1 steps 7–8 — readiness gate (PASS) + sprint planning.** Sprint status → `_bmad-output/implementation-artifacts/sprint-status.yaml` (7 epics, 42 stories, all `backlog`; retrospectives `optional`). Generator emitted 2 benign warnings (unparsed "Epic-like" headings = the doc title and "Epic List"); all 7 epics/42 stories parsed correctly.
 - **Git repo initialized** (`git init -b main`); commits made.
 
 ## Environment (verified 2026-10-15)
 Node v26.7.0 · pnpm 10.20.0 · npm 11.19.0 · git 2.43.0 · wrangler 4.151.0 (via `npx`) · uv 0.12.2 · Hermes Agent v0.21.6+667 · BMAD 6.12.3. Figma MCP: server enabled + OAuth tokens present (`~/.hermes/mcp-tokens/figma.*`); project skills loaded (`[project]`).
 
 ## In progress / next concrete step
-**Owner review of `_bmad-output/planning-artifacts/epics.md`** (7 epics / 42 stories). After approval: Stage 1 step 7 (implementation readiness check), then step 8 (**sprint planning** → the sprint/story status file, whose real path is recorded in STATE.md). See `docs/BMAD-INTEGRATION.md` §Stage 1.
+**Owner review of the plan** — `_bmad-output/planning-artifacts/epics.md` + `_bmad-output/implementation-artifacts/sprint-status.yaml`. After approval: **Stage 2 — delivery loop**, starting with story `1-1-monorepo-scaffold` (`bmad-build`): create/prepare story → implement → run all checks → code review → update story status + STATE → commit. Epic boundary = default review checkpoint; production deploy and paid resources stay approval-gated.
 
 ## Blockers needing the owner (collect here, ask in one batch)
 1. ~~Figma MCP not authorised~~ — **resolved 2026-10-15**: owner completed `hermes mcp login figma`; `hermes mcp test figma` → **✓ Connected, 42 tools**; the session registered **46 `mcp__figma__*` tools** (`logs/agent.log`). Step 4 (UX) is now done.
@@ -54,6 +55,7 @@ Node v26.7.0 · pnpm 10.20.0 · npm 11.19.0 · git 2.43.0 · wrangler 4.151.0 (v
 - 2026-10-15: **approved the architecture** (spine + ADR-0007…0009) and asked for CPU-risk alternatives (→ ADR-0010).
 
 ## Session notes (newest first)
+- **2026-10-15 (Hermes), session 8:** Owner accepted the epics ("lanjutkan") → `epics.md` set `final`. Ran Stage 1 steps 7–8: readiness gate **PASS**; generated `_bmad-output/implementation-artifacts/sprint-status.yaml` (7 epics / 42 stories). Stage 1 planning **complete**. Status → `awaiting owner review`; next is Stage 2 (story `1-1`).
 - **2026-10-15 (Hermes), session 7:** Owner approved the architecture and asked for CPU-risk alternatives → wrote ADR-0010 (static-first UI → Hono API split → paid plan) and updated spine AD-11. Ran Stage 1 step 6 (epics & stories): `_bmad-output/planning-artifacts/epics.md` (7 epics, 42 stories). Status → `awaiting owner review` at the epics gate.
 - **2026-10-15 (Hermes), session 6:** Ran Stage 1 step 5 (architecture). Wrote the spine (AD-1…AD-15) and verified the stack against current official docs; wrote ADR-0007…0009 and synced `docs/ARCHITECTURE.md`. Recorded the Workers Free **10 ms CPU** risk (ADR-0008). Status → `awaiting owner review` at the architecture gate.
 - **2026-10-15 (Hermes), session 5:** Figma MCP confirmed connected (`✓ Connected, 42 tools`). Ran Stage 1 step 4 (UX): read the Figma file via MCP, replaced the *(approx.)* tokens in `docs/DESIGN.md` with exact values, mapped all 12 frames (node IDs) to screens, and designed the missing Create/Edit Member screen. Next: step 5 (architecture, review gate).
