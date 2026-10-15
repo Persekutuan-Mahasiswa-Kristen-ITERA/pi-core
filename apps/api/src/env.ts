@@ -27,6 +27,13 @@ export interface Env {
    * an open redirector. Empty means the mobile hand-off is refused.
    */
   MOBILE_REDIRECT_URIS?: string;
+  /**
+   * Comma-separated extra origins allowed to make **credentialed** cross-origin requests (FR-54) — in
+   * practice the admin web app. `BETTER_AUTH_URL` is always allowed, so the API's own origin needs no
+   * entry here. There is no wildcard: an unlisted origin gets neither CORS headers nor permission to
+   * mutate.
+   */
+  CORS_ORIGINS?: string;
 }
 
 /** Hono environment for this app. */

@@ -30,7 +30,8 @@
 			"vars": {
 				"ENVIRONMENT": "staging",
 				"BETTER_AUTH_URL": "https://pi-core-api-staging.pmkitera.workers.dev",
-				"MOBILE_REDIRECT_URIS": "picore://auth"
+				"MOBILE_REDIRECT_URIS": "picore://auth",
+				"CORS_ORIGINS": "https://pi-core-web-staging.pmkitera.workers.dev"
 			},
 			"hyperdrive": [
 				{
