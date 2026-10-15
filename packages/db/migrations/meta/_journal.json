@@ -8,6 +8,13 @@
       "when": 1792043347954,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792051356290,
+      "tag": "0001_periods_positions_assignments",
+      "breakpoints": true
     }
   ]
 }

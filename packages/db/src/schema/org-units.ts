@@ -7,6 +7,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -46,6 +47,11 @@ export const orgUnits = pgTable(
       .where(sql`${t.parentId} is null`),
     index("org_units_parent_idx").on(t.parentId),
     index("org_units_path_idx").on(t.path),
+    // FK target for assignments' composite `(org_unit_id, unit_type) -> (id, type)`,
+    // which is what enforces `org_unit.type = position.unit_type` (FR-30).
+    // A constraint, not a bare unique index: Postgres requires a unique constraint as a
+    // composite FK target.
+    unique("org_units_id_type_uq").on(t.id, t.type),
   ],
 );
 
