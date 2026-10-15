@@ -4,15 +4,18 @@
  *
  * Scope: `O` organization-wide, `U` the holder's own unit subtree, `S` self only.
  *
- * Two documented gaps are handled conservatively (deny by default) and flagged to the owner:
+ * Three documented gaps were handled conservatively (deny by default) and **confirmed by the owner
+ * on 2026-10-15**:
  *  - `bendahara` and `panitia` have **no column** in §3's matrix, so they get only the universal
  *    baseline. `bendahara_umum_*` positions also carry `bph`, which is where their real
  *    permissions come from.
  *  - §3 lists `Staff` for "division / bureau", but `positions.key` is unique (§4) and a position
  *    has a single `unit_type`, so it is seeded as two positions: `staff` (division) and
- *    `staff_biro` (bureau).
+ *    `staff_biro` (bureau). **Owner chose to keep two positions** rather than making `key` unique
+ *    per `(key, unit_type)`.
  *  - The `panitia` **position** is not seeded: its unit_type is "reserved", which is not in the
- *    `org_unit_type` enum, and §3 marks it deferred with Events. The `panitia` role is seeded.
+ *    `org_unit_type` enum, and §3 marks it deferred with Events. **Owner confirmed it stays
+ *    deferred.** The `panitia` role is seeded.
  */
 
 export type Scope = "O" | "U" | "S";
