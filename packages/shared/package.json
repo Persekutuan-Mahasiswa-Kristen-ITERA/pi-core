@@ -1,0 +1,22 @@
+{
+  "name": "@pi-core/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PI-CORE shared domain code: the RBAC permission catalog, the default role matrix and the pure can() authorization decision.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./rbac": "./src/rbac/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@pi-core/config": "workspace:*",
+    "eslint": "^9.36.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

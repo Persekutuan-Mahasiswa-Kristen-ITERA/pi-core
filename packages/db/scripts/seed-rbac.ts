@@ -9,16 +9,11 @@
  *
  *   DIRECT_URL=… pnpm --filter @pi-core/db db:seed:rbac
  */
+import { DEFAULT_MATRIX, PERMISSIONS, ROLES } from "@pi-core/shared";
 import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { createDb } from "../src/client";
 import { permissions, positionRoles, positions, rolePermissions, roles } from "../src/schema";
-import {
-  EXPECTED_RBAC_COUNTS,
-  PERMISSIONS,
-  POSITIONS,
-  ROLES,
-  UNIVERSAL_GRANTS,
-} from "../src/seed/rbac";
+import { EXPECTED_RBAC_COUNTS, POSITIONS } from "../src/seed/rbac";
 
 const url = process.env.DIRECT_URL ?? process.env.DIRECT_DATABASE_URL;
 if (!url) {
@@ -61,17 +56,13 @@ try {
   }
 
   // ---- role → permission ---------------------------------------------------
+  // Seeded straight from the shared DEFAULT_MATRIX, so the database and can() cannot disagree.
   const grants: Array<{ roleId: string; permissionKey: string; scope: "O" | "U" | "S" }> = [];
-  const grantsByRole = new Map<string, Set<string>>();
-  for (const r of ROLES) {
-    const roleId = roleIds.get(r.key)!;
-    const merged = { ...UNIVERSAL_GRANTS, ...r.grants };
-    const keys = new Set<string>();
-    for (const [permissionKey, scope] of Object.entries(merged)) {
+  for (const role of ROLES) {
+    const roleId = roleIds.get(role.key)!;
+    for (const [permissionKey, scope] of DEFAULT_MATRIX.get(role.key) ?? []) {
       grants.push({ roleId, permissionKey, scope });
-      keys.add(permissionKey);
     }
-    grantsByRole.set(roleId, keys);
   }
   for (const g of grants) {
     await db
