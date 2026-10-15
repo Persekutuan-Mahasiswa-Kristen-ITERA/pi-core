@@ -11,9 +11,9 @@ import { eq } from "drizzle-orm";
 import { createDb } from "../src/client";
 import { members, orgUnits } from "../src/schema";
 
-const url = process.env.DIRECT_DATABASE_URL;
+const url = process.env.DIRECT_URL ?? process.env.DIRECT_DATABASE_URL;
 if (!url) {
-  console.error("DIRECT_DATABASE_URL is required");
+  console.error("DIRECT_URL (or DIRECT_DATABASE_URL) is required");
   process.exit(1);
 }
 

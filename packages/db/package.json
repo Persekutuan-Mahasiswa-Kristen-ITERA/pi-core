@@ -14,7 +14,7 @@
     "test": "echo \"no tests yet in @pi-core/db\" && exit 0",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:smoke": "tsx scripts/smoke.ts",
+    "db:smoke": "tsx --env-file-if-exists=.env scripts/smoke.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
