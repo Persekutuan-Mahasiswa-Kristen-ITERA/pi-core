@@ -3,10 +3,10 @@
  *
  * Tree: `organization` (root) -> `bph` | 7 `department` | 1 `bureau`; each department -> `division`s.
  *
- * ⚠️ Discrepancy (2026-10-15): the §2 table lists **15** divisions, while §2's prose and story
- * 2.2's acceptance criteria say **16**. The detailed table is treated as authoritative here;
- * the missing 16th is an open question for the owner. Re-running the seed after an answer
- * updates names/counts without duplicating anything.
+ * Resolved 2026-10-15: §2's table originally merged two divisions as "EO & Harmonisasi", which
+ * made the table show 15 while the prose said 16. The owner split it into **EO** and
+ * **Harmonisasi**, so the table now lists **16** divisions and matches the prose. Names below are
+ * the owner-confirmed official spellings.
  */
 
 export interface SeedUnit {
@@ -29,7 +29,10 @@ export const DEPARTMENTS: SeedDepartment[] = [
   {
     name: "Departemen Internal",
     slug: "departemen-internal",
-    divisions: [{ name: "EO & Harmonisasi", slug: "eo-harmonisasi" }],
+    divisions: [
+      { name: "EO", slug: "eo" },
+      { name: "Harmonisasi", slug: "harmonisasi" },
+    ],
   },
   {
     name: "Departemen Eksternal",

@@ -31,6 +31,8 @@ if (!url) {
 const { db, pool } = createDb(url);
 let created = 0;
 let updated = 0;
+/** `${parentId ?? "root"}:${slug}` for every unit the seed source describes. */
+const expectedKeys = new Set<string>();
 
 interface Placement {
   id: string;
@@ -45,6 +47,7 @@ async function upsertUnit(
   sortOrder: number,
 ): Promise<Placement> {
   const parentId = parent?.id ?? null;
+  expectedKeys.add(`${parentId ?? "root"}:${unit.slug}`);
   const match = parentId
     ? and(eq(orgUnits.parentId, parentId), eq(orgUnits.slug, unit.slug))
     : and(isNull(orgUnits.parentId), eq(orgUnits.slug, unit.slug));
@@ -107,6 +110,18 @@ try {
   for (const [type, expected] of Object.entries(EXPECTED_COUNTS)) {
     const got = actual[type] ?? 0;
     console.log(`  ${type.padEnd(12)} expected=${expected} actual=${got} ${got === expected ? "OK" : "MISMATCH"}`);
+  }
+
+  // Drift report: units in the database that the seed source no longer describes. Reported,
+  // never deleted — a unit may legitimately survive a period change, and units are only
+  // soft-deleted once referenced. Review any line here by hand.
+  const rows = await db
+    .select({ id: orgUnits.id, parentId: orgUnits.parentId, slug: orgUnits.slug, name: orgUnits.name })
+    .from(orgUnits);
+  const drift = rows.filter((r) => !expectedKeys.has(`${r.parentId ?? "root"}:${r.slug}`));
+  if (drift.length > 0) {
+    console.log(`  drift (in DB, not in seed source): ${drift.length}`);
+    for (const d of drift) console.log(`    - ${d.name} [${d.slug}] id=${d.id}`);
   }
 
   const mismatched = Object.entries(EXPECTED_COUNTS).some(

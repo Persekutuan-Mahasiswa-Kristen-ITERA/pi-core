@@ -20,7 +20,7 @@ Structure tree (`org_units`): `organization` -> `bph` | 7 `department` | 1 `bure
 | Unit | Type | Children (divisions) |
 |---|---|---|
 | BPH PMK ITERA | bph | none |
-| Departemen Internal | department | EO & Harmonisasi |
+| Departemen Internal | department | EO; Harmonisasi |
 | Departemen Eksternal | department | Intra Kampus; Ekstra Kampus |
 | Departemen Pelayanan Khusus | department | Worship; Worship Creator; Musik |
 | Departemen Talenta | department | Art Interest; Ekstra Youth |
