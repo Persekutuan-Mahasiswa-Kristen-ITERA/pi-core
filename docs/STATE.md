@@ -6,9 +6,9 @@ Single source of truth for "where are we". Keep it short and factual. Never writ
 - **Mode:** BMAD   <!-- BMAD | PHASES (fallback) -->
 - **BMAD version / install status:** installed — **6.12.3** (core + bmm, built-in) + bmb v2.2.2, cis v0.3.2, tea v1.27.2 (external); installed 2026-10-14; `ides: [hermes, pi]`; output `_bmad-output/`
 - **BMAD stage / current step:** Stage 1 (planning) **complete** — steps 1–8 done. Owner added a **real-time requirement** (ADR-0011) → plan updated (PRD FR-55…57, spine AD-16, **Epic 8**). **At owner-review gate** (updated plan). Next after approval = **Stage 2 delivery**: story `1-1-monorepo-scaffold` via `bmad-build`
-- **Current phase/epic:** 0 / Epic 1 (Foundation)
+- **Current phase/epic:** Epic 1 (Foundation) — **in progress** (story 1-1 done)
 - **BMAD sprint/story status file path:** `_bmad-output/implementation-artifacts/sprint-status.yaml` (8 epics / 46 stories, all `backlog`)
-- **Status:** awaiting owner review   <!-- not started | in progress | blocked | awaiting owner review | done -->
+- **Status:** in progress   <!-- not started | in progress | blocked | awaiting owner review | done -->
 - **Last updated:** 2026-10-15, by Hermes (implementation agent)
 
 ## Done (verified)
@@ -24,13 +24,14 @@ Single source of truth for "where are we". Keep it short and factual. Never writ
 - **Stage 1 step 6 — epics & stories.** → `_bmad-output/planning-artifacts/epics.md` (**7 epics, 42 stories**; FR-1…FR-54 all covered; NFRs, AD-1…AD-15 and UX-DR1…8 folded in; each access-touching story carries denied-case tests in its DoD). **Owner-review gate.** ADR-0010 (Workers Free CPU mitigations: static-first UI → Hono API split → paid plan) recorded; spine AD-11 updated.
 - **Stage 1 steps 7–8 — readiness gate (PASS) + sprint planning.** Sprint status → `_bmad-output/implementation-artifacts/sprint-status.yaml` (7 epics, 42 stories, all `backlog`; retrospectives `optional`). Generator emitted 2 benign warnings (unparsed "Epic-like" headings = the doc title and "Epic List"); all 7 epics/42 stories parsed correctly.
 - **Change request — real-time (2026-10-15).** Owner asked the app + website to run **real-time from every aspect**. Recorded as **ADR-0011** (Durable Object `RealtimeHub` + WebSocket **Hibernation**; SSE fallback; notification-only channel so scope stays enforced by `can()`); added PRD **FR-55…FR-57** + **NFR-21**, spine **AD-16** (+ stack/capability rows), and a new **Epic 8: Real-time Updates** (4 stories). Sprint file regenerated → **8 epics / 46 stories**.
+- **Stage 2 story 1.1 — monorepo scaffold (done).** pnpm workspaces + Turborepo + TypeScript strict; `packages/config` (base tsconfig, ESLint flat config, Prettier). Verified: `pnpm install` (112 pkgs), `pnpm -r typecheck` ✓, `pnpm -r lint` ✓, `pnpm -r test` ✓, `pnpm typecheck` (turbo) ✓.
 - **Git repo initialized** (`git init -b main`); commits made.
 
 ## Environment (verified 2026-10-15)
 Node v26.7.0 · pnpm 10.20.0 · npm 11.19.0 · git 2.43.0 · wrangler 4.151.0 (via `npx`) · uv 0.12.2 · Hermes Agent v0.21.6+667 · BMAD 6.12.3. Figma MCP: server enabled + OAuth tokens present (`~/.hermes/mcp-tokens/figma.*`); project skills loaded (`[project]`).
 
 ## In progress / next concrete step
-**Owner review of the updated plan** — `_bmad-output/planning-artifacts/epics.md` + `_bmad-output/implementation-artifacts/sprint-status.yaml` (now **8 epics / 46 stories**, incl. Epic 8 real-time). After approval: **Stage 2 — delivery loop**, starting with story `1-1-monorepo-scaffold` (`bmad-build`): create/prepare story → implement → run all checks → code review → update story status + STATE → commit. Epic boundary = default review checkpoint; production deploy and paid resources stay approval-gated.
+**Stage 2 — delivery loop** (Epic 1: Foundation, in progress). Next story: **`1-2-next-js-app-opennext-wrangler-config`** — `apps/web` Next.js 16 (App Router) + `@opennextjs/cloudflare` + Wrangler config (`nodejs_compat`, assets binding). Then 1-3 (CI), 1-4 (Cloudflare staging hello), 1-5 (baseline CPU/bundle measurements). Stop at the **Epic 1 boundary** for owner review. Production deploy and paid resources stay approval-gated.
 
 ## Blockers needing the owner (collect here, ask in one batch)
 1. ~~Figma MCP not authorised~~ — **resolved 2026-10-15**: owner completed `hermes mcp login figma`; `hermes mcp test figma` → **✓ Connected, 42 tools**; the session registered **46 `mcp__figma__*` tools** (`logs/agent.log`). Step 4 (UX) is now done.
@@ -58,6 +59,7 @@ Node v26.7.0 · pnpm 10.20.0 · npm 11.19.0 · git 2.43.0 · wrangler 4.151.0 (v
 - 2026-10-15: accepted the plan and **added the real-time requirement** (→ ADR-0011, Epic 8).
 
 ## Session notes (newest first)
+- **2026-10-15 (Hermes), session 10:** Stage 2 started. Story **1.1 (monorepo scaffold)** implemented and verified: pnpm workspaces + Turborepo + TS strict + `packages/config` (tsconfig/eslint/prettier); `pnpm install`, `pnpm -r typecheck`, `pnpm -r lint`, `pnpm -r test` all pass. Sprint status: `epic-1: in-progress`, `1-1: done`. Next: story 1.2.
 - **2026-10-15 (Hermes), session 9:** Owner added a **real-time requirement** ("app + website real-time from every aspect"). Verified Cloudflare options (Durable Objects on Free, SQLite-backed; WebSocket Hibernation = zero idle cost; SSE 100 s idle timeout) → **ADR-0011**; updated PRD (FR-55…57, NFR-21), spine (AD-16 + stack/capability), and epics (**Epic 8: Real-time Updates**, 4 stories); regenerated sprint file → **8 epics / 46 stories**.
 - **2026-10-15 (Hermes), session 8:** Owner accepted the epics ("lanjutkan") → `epics.md` set `final`. Ran Stage 1 steps 7–8: readiness gate **PASS**; generated `_bmad-output/implementation-artifacts/sprint-status.yaml` (7 epics / 42 stories). Stage 1 planning **complete**. Status → `awaiting owner review`; next is Stage 2 (story `1-1`).
 - **2026-10-15 (Hermes), session 7:** Owner approved the architecture and asked for CPU-risk alternatives → wrote ADR-0010 (static-first UI → Hono API split → paid plan) and updated spine AD-11. Ran Stage 1 step 6 (epics & stories): `_bmad-output/planning-artifacts/epics.md` (7 epics, 42 stories). Status → `awaiting owner review` at the epics gate.

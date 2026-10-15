@@ -1,0 +1,24 @@
+{
+  "name": "@pi-core/config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared build configuration (tsconfig / eslint / prettier) for the PI-CORE monorepo.",
+  "exports": {
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./eslint": "./eslint.config.js",
+    "./prettier": "./prettier.config.js"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "test": "echo \"no tests in @pi-core/config\" && exit 0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "eslint": "^9.36.0",
+    "globals": "^16.4.0",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.45.0"
+  }
+}
