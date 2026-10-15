@@ -52,7 +52,7 @@ Definitions (this resolves the prototype's "Role" vs "Position"):
 | division / bureau | Staff (`staff`) | 70 | staff |
 | reserved | Panitia (`panitia`) | 80 | panitia (event-scoped; deferred with Events) |
 
-The mapping is configurable data (`position_roles`), seeded idempotently. Ketua Umum, Sekjen and Sekum are the "organization admins".
+The mapping is configurable data (`position_roles`), seeded idempotently. Ketua Umum, Sekjen and Sekum are the "organization admins"; per **ADR-0002** (owner, 2026-10-15) **all Kepala Departemen and Kepala Biro also hold `organization_admin`**, and `super_admin` is held by the Kepala Divisi IT / Kepala Departemen CMIT plus a backup.
 
 ### Roles
 `super_admin` (technical, granted explicitly, NOT tied to a position/period), `organization_admin`, `bph`, `bendahara`,
@@ -99,7 +99,7 @@ Rules: deny by default. Permissions are checked server-side through one function
 - `assignments`: id, member_id, org_unit_id, position_id, period_id, starts_on, ends_on, created_by. Constraints: unique(member, unit, position, period);
   uniqueness for `is_unique_per_unit` positions per (unit, period); org_unit.type must match position.unit_type.
 - `system_grants`: member_id, role_key (`super_admin`), granted_by, granted_at.
-- `allowed_email_domains`: domain, allow_subdomains (bool), is_active. Seed (confirm with owner): `pmkitera.web.id`, `itera.ac.id`, and likely `student.itera.ac.id`.
+- `allowed_email_domains`: domain, allow_subdomains (bool), is_active. Seed (**ADR-0005**, owner 2026-10-15): **ITERA domains only** — `itera.ac.id` and `student.itera.ac.id` (with `allow_subdomains` set appropriately). `pmkitera.web.id` is **not** seeded (its mailboxes are not Google accounts).
 - `integrations` (= OIDC clients): id, key (`nexus|finance|notulensi|panitia|inventory`), name, client_id, redirect_uris[], allowed_scopes[], status,
   last_authorized_at. No plaintext client secrets stored (hash, or public client + PKCE).
 - `audit_logs` (append-only): id, at, actor_member_id, action, entity_type, entity_id, before/after (jsonb, sensitive fields redacted), ip, user_agent, request_id.
@@ -109,7 +109,7 @@ Rules: deny by default. Permissions are checked server-side through one function
 - Only Google Sign-In. No passwords, so no password-reset flow. Email verification = Google's `email_verified` claim. MFA = Google 2-Step Verification
   (cannot be enforced for accounts outside our control). Optional step-up TOTP for admin roles is a Phase 6 decision (see Open Decisions).
 - Domain restriction [Owner]: allowlist in `allowed_email_domains`, editable by `super_admin` (this is the prototype's "Authentication Configuration" screen).
-  Enforce **server-side** on the verified ID-token email. The Google `hd` parameter is only a UI hint and is NOT a security control. [Verify]
+  Enforce **server-side** on the verified ID-token email. The Google `hd` parameter is only a UI hint and is NOT a security control. [Verify] Seed = ITERA domains only (**ADR-0005**).
 - **Invite-only**: after the Google callback, the email must match an existing `active` member. Unknown email gives a generic denial + audit entry.
   Link `google_sub` on first login and prefer `sub` matching afterwards.
 - Web: secure httpOnly cookie session. Mobile: system-browser OAuth with PKCE, tokens in `expo-secure-store`, short access token + rotating refresh token. [Verify library support]
@@ -130,8 +130,8 @@ Cursor pagination. Rate limits on auth and write endpoints. `requestId` propagat
 ## 8. Cloudflare topology [Proposed] [Verify all]
 - Worker `pi-core-web` (Next.js via OpenNext) with bindings: `HYPERDRIVE` to Supabase Postgres, `AVATARS` (R2), rate-limiting binding or KV, secrets via `wrangler secret`.
 - Environments: local (wrangler dev / next dev), **staging** (own Supabase project + own Hyperdrive), **production**.
-- Custom domain `core.pmkitera.web.id` (and a staging subdomain). **Requires the zone to be on Cloudflare DNS**; confirm in Phase 0.
-- Workers Free limits (bundle size / CPU) may be insufficient for Next.js via OpenNext; verify and report before any paid plan is enabled.
+- Custom domain `core.pmkitera.web.id` — **deferred (ADR-0003)**: `pmkitera.web.id` is not on Cloudflare DNS. Staging is served from a `*.workers.dev` subdomain.
+- Workers **Free** is the ceiling (**ADR-0003**); if Next.js via OpenNext exceeds Free limits (bundle size / CPU), report and re-scope — do not upgrade without owner approval.
 - CI: GitHub Actions runs typecheck/lint/test and deploys staging automatically. Production deploy and production migrations require explicit owner approval.
 - Supabase is used as plain Postgres. Lock down the Supabase Data API exposure for these tables; do not rely on Supabase Auth. Use the connection string type recommended for Hyperdrive. [Verify]
 
@@ -139,13 +139,13 @@ Cursor pagination. Rate limits on auth and write endpoints. `requestId` propagat
 Unit tests for `can()` and period/assignment invariants. Integration tests per endpoint including **denied** cases. E2E for login -> dashboard -> assign member (web).
 Mobile smoke tests. Seed/migration tests on an empty DB. A11y checks on key screens. Structured logs with request ids.
 
-## 10. Open decisions (owner)
-1. Who holds `super_admin` (suggestion: Kepala Divisi IT / Kepala Departemen CMIT, plus a backup)?
-2. Do `pmkitera.web.id` mailboxes exist as Google accounts (Google Workspace)? If not, those users cannot use Google Sign-In and an alternative is needed.
-3. Is `student.itera.ac.id` the student email domain? The allowlist must include it; `itera.ac.id` alone does not match subdomains unless `allow_subdomains` is set.
-4. Is `pmkitera.web.id` DNS managed in Cloudflare? Is a paid Workers plan acceptable?
-5. Mobile targets: Android first? iOS needs a paid Apple Developer account.
-6. Optional admin step-up MFA (TOTP) on top of Google?
-7. UI language: English labels as in Figma (default) vs Bahasa Indonesia; build i18n-ready either way.
-8. Extra member profile fields beyond: name, email, NIM, faculty, study program, cohort year, phone, photo.
-9. Legacy member data import (CSV), later, once data exists.
+## 10. Owner decisions (resolved 2026-10-15 during PRD review)
+1. `super_admin` = Kepala Divisi IT / Kepala Departemen CMIT + a backup; **all** Kepala Departemen & Kepala Biro also hold `organization_admin`. → **ADR-0002**
+2. `pmkitera.web.id` mailboxes are **not** Google accounts → allowlist uses ITERA domains only. → **ADR-0005**
+3. Student domain = the official ITERA domain (`student.itera.ac.id`); `itera.ac.id` alone does not match subdomains unless `allow_subdomains` is set.
+4. `pmkitera.web.id` DNS is **not** on Cloudflare; **no paid Workers plan** → staging on `*.workers.dev`. → **ADR-0003**
+5. Mobile: Android first; **iOS is a dev-only target** (no paid Apple Developer account). → **ADR-0004**
+6. Optional admin step-up MFA (TOTP): **deferred to Phase 6**.
+7. UI language: **Bahasa Indonesia default** (i18n-ready; English as a second locale). → **ADR-0006**
+8. Extra member profile fields: **deferred** — MVP keeps the §4 fields.
+9. Legacy member data import (CSV): still later, once data exists (unchanged).

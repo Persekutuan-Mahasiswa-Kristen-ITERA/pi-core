@@ -1,6 +1,6 @@
 ---
 title: PI-CORE
-status: draft
+status: final
 created: 2026-10-15
 updated: 2026-10-15
 ---
@@ -11,6 +11,8 @@ updated: 2026-10-15
 ## 0. Document Purpose
 
 This PRD is for the owner (PMK ITERA), the implementation agent, and the downstream BMAD workflows (UX, architecture, epics & stories). It is **derived from and must stay consistent with** the kit's authoritative docs: `docs/ARCHITECTURE.md` (org model, roles, permission matrix, data model, auth, Cloudflare topology), `docs/SECURITY.md` (non-negotiable security rules), and `docs/DESIGN.md` (design tokens, screen inventory, approved deviations D1–D5). Where this PRD and those docs diverge, the docs win and the divergence is a defect to fix; the companion product brief is `_bmad-output/planning-artifacts/briefs/brief-PMK-CORE-2026-10-15/brief.md`. Vocabulary is Glossary-anchored (§3); features are grouped with globally numbered FRs; inferences are tagged `[ASSUMPTION: …]` and indexed in §13.
+
+**Owner review:** approved 2026-10-15. The ten Open Questions were answered (see §12) and their effects are folded into the FRs, NFRs and Assumptions Index below; the related owner decisions are recorded in ADR-0002…ADR-0006.
 
 ## 1. Vision
 
@@ -36,7 +38,7 @@ The design bet is **periods as first-class**: access is derived from the *active
 - Non-PMK apps and external identity providers (Google is the only IdP).
 - Public/anonymous visitors — there is no public surface; everything is invite-only.
 - Event-scoped roles (Panitia) — deferred with Events.
-- iOS users — pending the owner's platform decision (see §12).
+- iOS is a **development target** but not a distribution target: the owner will not use a paid Apple Developer account, so iOS builds are local/simulator only (no App Store/TestFlight) — see ADR-0004.
 
 ### 2.3 Key User Journeys
 
@@ -127,6 +129,7 @@ The system refuses sign-in when the verified email's domain is not in `allowed_e
 **Consequences (testable):**
 - Enforcement is server-side on the verified email; the Google `hd` parameter is never used as a control.
 - Subdomain matching honours the domain's `allow_subdomains` flag.
+- Resolved 2026-10-15: `pmkitera.web.id` mailboxes are **not** Google accounts, so the allowlist is seeded with the ITERA domains only (`itera.ac.id`, `student.itera.ac.id`); see ADR-0005.
 
 #### FR-4: Invite-only admission
 Only emails matching an existing `active` Member may obtain a session.
@@ -168,7 +171,7 @@ An actor with `member:read` can open a member's profile (name, email, avatar, un
 - Sensitive fields (NIM, phone) are returned only to holders of `member:read_sensitive`; otherwise they are omitted.
 
 #### FR-10: Create member
-An actor with `member:create` can create a member (name, email, NIM, faculty, study program, cohort year, phone, photo).
+An actor with `member:create` can create a member (name, email, NIM, faculty, study program, cohort year, phone, photo). These are the MVP fields (owner confirmed 2026-10-15); extra fields are deferred.
 **Consequences (testable):**
 - Input is validated with zod; unknown fields are rejected.
 - The mutation writes an audit row.
@@ -252,7 +255,7 @@ Members and assignments can be filtered by period (prototype's Period filter).
 
 ### 4.5 Roles & Permissions
 
-**Description.** Roles are permission bundles; permissions carry a scope (O/U/S). A single server-side `can()` enforces the matrix in `docs/ARCHITECTURE.md` §3. System roles are immutable (DESIGN deviation **D3**); custom roles are created by `super_admin` from the fixed permission catalog.
+**Description.** Roles are permission bundles; permissions carry a scope (O/U/S). A single server-side `can()` enforces the matrix in `docs/ARCHITECTURE.md` §3. System roles are immutable (DESIGN deviation **D3**); custom roles are created by `super_admin` from the fixed permission catalog. Owner decision 2026-10-15 (ADR-0002): `super_admin` is held by the Kepala Divisi IT / Kepala Departemen CMIT plus a backup, and **all** Kepala Departemen and Kepala Biro also hold `organization_admin` (admin, but not super_admin).
 
 **Functional Requirements:**
 
@@ -351,7 +354,7 @@ Consumers authenticate users via Authorization Code + PKCE. Realizes UJ-4.
 #### FR-38: Integration connection status
 The Integrations screen shows Connected / Not Connected.
 **Consequences (testable):**
-- `Connected` = enabled AND ≥1 successful authorization within a configurable window; `Not connected` = not registered, disabled, or never used (definition to confirm with the owner when PI-NEXUS integration starts — OQ-5).
+- `Connected` = enabled AND ≥1 successful authorization within a configurable window; `Not connected` = not registered, disabled, or never used (owner accepted this definition 2026-10-15; re-confirm when the PI-NEXUS integration starts).
 - Detail view shows client id, redirect URIs, scopes, last authorized.
 
 #### FR-39: No cross-subdomain cookie sharing
@@ -428,7 +431,8 @@ The website meets WCAG AA contrast, 44px targets, visible focus rings, and keybo
 The app implements the prototype's screen inventory: Login, Dashboard, Members, Create/Edit Member (not in prototype — must be designed, OQ-6), Roles, Periods, Assignments, Integrations, Settings, plus basic Profile.
 **Consequences (testable):**
 - Layout patterns match DESIGN.md (top bar, 4-tab bottom nav, gold drawer, Directory tabs Members|Roles|Periods).
-- Deviations D1–D5 are applied deliberately; no other deviations without recording them in DESIGN.md.
+- Deviations D1–D5 are applied deliberately; no other deviations without recording them in DESIGN.md. UI text defaults to **Bahasa Indonesia** (i18n-ready) — see ADR-0006 and DESIGN.md D5.
+- The Create/Edit Member screen (absent from the prototype) is designed from tokens; the owner approved building it as needed (resolved OQ-6).
 
 #### FR-49: Offline and states (mobile)
 Mobile screens handle loading, empty, error, forbidden and offline states.
@@ -539,7 +543,7 @@ Strict CORS allowlist (no wildcard with credentials) and CSRF protection for coo
 - NFR-16: Mobile tokens only in SecureStore; system browser for Google login; validated deep-link schemes; no debug endpoints in release.
 
 **Performance / platform:**
-- NFR-17: Stay within Cloudflare Workers constraints (bundle size, CPU time) or report before enabling a paid plan; PostgreSQL accessed via Cloudflare Hyperdrive.
+- NFR-17: Stay within **Cloudflare Workers Free** limits (bundle size, CPU time); no paid plan is authorised (ADR-0003). PostgreSQL is accessed via Cloudflare Hyperdrive. Staging is served from a `*.workers.dev` subdomain.
 - NFR-18: Lists use cursor pagination; subtree/scope filtering happens in the query.
 
 **Accessibility:**
@@ -551,7 +555,7 @@ Strict CORS allowlist (no wildcard with credentials) and CSRF protection for coo
 ## 9. Constraints and Guardrails
 
 - **Privacy:** collect the minimum fields; define retention; soft-delete; anonymization path for deletion requests (NFR-6).
-- **Cost:** Workers Free limits may be insufficient for Next.js via OpenNext — verify before enabling any paid plan (owner approval required). Supabase/Hyperdrive/R2 stay on free/staging tiers until the owner approves otherwise.
+- **Cost:** Workers **Free** is the ceiling — no paid Workers plan (ADR-0003). If Next.js via OpenNext exceeds Free limits, report and re-scope rather than upgrade. Supabase/Hyperdrive/R2 stay on free/staging tiers. Staging uses a `*.workers.dev` domain.
 - **Tech constraints:** monorepo (pnpm workspaces + Turborepo), TypeScript strict; Next.js App Router on Cloudflare Workers via OpenNext; Drizzle + SQL migrations; Expo for mobile.
 - **Governance:** changes to the org model, permission matrix or auth approach require an ADR + owner approval (`AGENTS.md`).
 
@@ -560,7 +564,7 @@ Strict CORS allowlist (no wildcard with credentials) and CSRF protection for coo
 - **Consumers (later):** PI-NEXUS (separate repo), Finance, Notulensi, Panitia, Inventory — each registers as an Integration.
 - **Out of scope, never touched:** PI-LYNK, PI-INGRESS, PI-ARK, PI-NEXUS internals.
 - **External services:** Google OAuth client; Supabase (Postgres); Cloudflare (Workers, Hyperdrive, R2, rate limiting/KV, optional Access for staging); GitHub Actions for CI.
-- **Domain/DNS:** custom domain `core.pmkitera.web.id` requires the zone on Cloudflare DNS (owner confirmation — OQ-1).
+- **Domain/DNS:** `pmkitera.web.id` is **not** on Cloudflare DNS and no paid plan is authorised, so staging uses a `*.workers.dev` subdomain; the custom domain `core.pmkitera.web.id` is deferred (ADR-0003).
 
 ## 11. Rollout and Change Management
 
@@ -568,25 +572,33 @@ Strict CORS allowlist (no wildcard with credentials) and CSRF protection for coo
 - CI runs typecheck/lint/test and deploys staging automatically; production deploy and production migrations require explicit owner approval.
 - Phased delivery follows the BMAD epics (seeded from `docs/phases/`): Foundation → Data & RBAC → Auth → API & Admin Web → Mobile → OIDC & Integrations → Hardening & Release.
 
-## 12. Open Questions
+## 12. Open Questions — Resolved (owner, 2026-10-15)
 
-1. **OQ-1** — Is `pmkitera.web.id` DNS managed in Cloudflare? Is a paid Workers plan acceptable? (`ARCHITECTURE.md` §10.4)
-2. **OQ-2** — Do `pmkitera.web.id` mailboxes exist as Google accounts (Google Workspace)? If not, those users cannot use Google Sign-In. (§10.2)
-3. **OQ-3** — Confirm the official spelling of the org structure and which email domain(s) are the student domain (`student.itera.ac.id`?). The allowlist must include it. (§10.3)
-4. **OQ-4** — Mobile targets: Android first only, or iOS too (needs a paid Apple Developer account)? (§10.5)
-5. **OQ-5** — Confirm the "Connected" definition for Integrations when PI-NEXUS integration starts. (§10.6 / FR-38)
-6. **OQ-6** — Create/Edit Member screen is missing from the prototype and must be designed from tokens; confirm the fields and layout. (§10.8 / FR-48)
-7. **OQ-7** — UI language: English labels (Figma default) with i18n-ready strings, or Bahasa Indonesia default? (§10.7 / D5)
-8. **OQ-8** — Extra member profile fields beyond name, email, NIM, faculty, study program, cohort year, phone, photo. (§10.8)
-9. **OQ-9** — Optional admin step-up MFA (TOTP) on top of Google — adopt in Phase 6? (§10.6)
-10. **OQ-10** — Who holds `super_admin` (suggestion: Kepala Divisi IT / Kepala Departemen CMIT, plus a backup)? (§10.1)
+1. **OQ-1** — `pmkitera.web.id` DNS is **not** on Cloudflare; **no paid Workers plan** — staging runs on a `*.workers.dev` subdomain, custom domain deferred. → ADR-0003
+2. **OQ-2** — `pmkitera.web.id` mailboxes are **not** Google accounts; the allowlist uses ITERA domains only. → ADR-0005
+3. **OQ-3** — The student domain is the official ITERA domain (`student.itera.ac.id`); org-structure names follow `docs/ARCHITECTURE.md` §2 and are confirmed at seed time.
+4. **OQ-4** — iOS is in scope as a **development target** only; no paid Apple Developer account, so no App Store/TestFlight. → ADR-0004
+5. **OQ-5** — The "Connected" definition is accepted (FR-38); re-confirm when the PI-NEXUS integration starts.
+6. **OQ-6** — The Create/Edit Member screen may be built from tokens as needed (FR-48).
+7. **OQ-7** — Default UI language is **Bahasa Indonesia** (i18n-ready). → ADR-0006
+8. **OQ-8** — Extra profile fields: **deferred** (recommendation accepted) — MVP keeps the `ARCHITECTURE.md` §4 fields.
+9. **OQ-9** — Optional admin step-up MFA (TOTP): **deferred to Phase 6** (recommendation accepted); Google 2-Step Verification is the only MFA in MVP.
+10. **OQ-10** — `super_admin` = Kepala Divisi IT / Kepala Departemen CMIT plus a backup; **all** Kepala Departemen and Kepala Biro also hold `organization_admin`. → ADR-0002
+
+**Still open (non-blocking):** the exact official spelling of each unit name (OQ-3) is confirmed at seed time in Phase 1.
 
 ## 13. Assumptions Index
 
-- `[ASSUMPTION]` The student email domain is `student.itera.ac.id` and staff/org mailboxes use `pmkitera.web.id` — **unconfirmed** (OQ-2, OQ-3); the allowlist seeds `pmkitera.web.id`, `itera.ac.id` and likely `student.itera.ac.id` with `allow_subdomains` set where needed.
-- `[ASSUMPTION]` English labels remain the default with i18n-ready strings (D5), pending OQ-7.
-- `[ASSUMPTION]` Android is the first mobile target; iOS is deferred pending OQ-4.
-- `[ASSUMPTION]` The MVP member profile uses exactly the fields in `ARCHITECTURE.md` §4; extra fields are deferred pending OQ-8.
-- `[ASSUMPTION]` The initial org structure (BPH; 7 departments; 1 bureau; 16 divisions) is correct and names are confirmed at seed time (OQ-3).
-- `[ASSUMPTION]` Workers Free limits are sufficient for staging; a paid plan is only considered if verified insufficient (NFR-17) — owner approval required.
-- `[ASSUMPTION]` Panitia (event-scoped) and Reports/Events/Notifications stay deferred for MVP, matching `docs/ROADMAP.md`.
+*Resolved 2026-10-15 (owner) — kept for traceability:*
+
+- ✅ The student email domain is the official ITERA domain (`student.itera.ac.id`); `pmkitera.web.id` mailboxes do not exist as Google accounts, so the allowlist uses ITERA domains only (OQ-2, OQ-3 → ADR-0005).
+- ✅ Default UI language is **Bahasa Indonesia**, i18n-ready (OQ-7 → ADR-0006; DESIGN.md D5 updated).
+- ✅ iOS is a development target only (no paid Apple Developer account); Android remains first (OQ-4 → ADR-0004).
+- ✅ The MVP member profile uses exactly the fields in `ARCHITECTURE.md` §4; extra fields deferred (OQ-8).
+- ✅ Workers **Free** is the ceiling; staging on `*.workers.dev`; no paid plan (OQ-1 → ADR-0003).
+- ✅ Panitia (event-scoped) and Reports/Events/Notifications stay deferred for MVP, matching `docs/ROADMAP.md`.
+- ✅ Optional TOTP step-up is deferred to Phase 6 (OQ-9).
+
+*Remaining assumptions:*
+
+- `[ASSUMPTION]` The initial org structure (BPH; 7 departments; 1 bureau; 16 divisions) is correct; exact names are confirmed at seed time (OQ-3).

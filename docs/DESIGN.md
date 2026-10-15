@@ -31,7 +31,7 @@ Implement tokens once: CSS variables + Tailwind theme (web) and a TS token objec
 | Login | Org title on brown curved header, logo, email/password fields, LOG IN, "Log in with Google" | See deviation D1 |
 | Dashboard | Greeting pill; stat cards (Total Members, Active Period, Available Roles) with % delta; Quick Access (Members, Roles, Events, Settings) | Delta semantics unclear (D4); Events is deferred |
 | Members | "Create Member"; search; Filter Role [ALL]; Filter Period [year]; rows: name, role, period, edit, delete | Delete = soft-delete with confirmation |
-| Create/Edit Member | **Not in prototype** (page 8 is an empty frame) | Must be designed from tokens; report as missing |
+| Create/Edit Member | **Not in prototype** (page 8 is an empty frame) | Owner approved designing it from tokens as needed (2026-10-15); report as designed |
 | Roles | "Create Role"; grid of role cards (name, Total Members); role detail: member list with position, Edit Role, Delete Role | System roles locked (D3) |
 | Periods | "Create Period"; list e.g. 2026/2027 Active; others "Set Active"; Edit | One active period only |
 | Assignments | Form: Assign Member, Role, Position, Period + Save; list rows: user, role, position, period | See D2 |
@@ -45,7 +45,7 @@ Implement tokens once: CSS variables + Tailwind theme (web) and a TS token objec
 - **D2 — Assignment form** uses Member, **Unit** (new, required by the org model), Position, Period. "Role" is derived from Position (shown read-only), not chosen freely.
 - **D3 — Roles.** Prototype "Create/Edit/Delete Role" applies to custom roles only; system roles show a lock and read-only permissions.
 - **D4 — Dashboard stats.** Replace ambiguous "14 Mo" and arbitrary deltas with: Total Members, Active Period (label + dates), Available Roles, with deltas shown only if real historical data exists.
-- **D5 — Language.** Keep English labels as in Figma; wire all strings through i18n so Bahasa Indonesia can be added. Fix prototype typos ("Posiion", "Connnected").
+- **D5 — Language (updated 2026-10-15, ADR-0006).** Default locale is **Bahasa Indonesia**; all strings go through i18n so English can be selected. Figma's English labels remain the source text for layout reference. Fix prototype typos ("Posiion", "Connnected").
 
 Any further deviation: record it here (ID, reason, date) and mention it in the task report.
 
