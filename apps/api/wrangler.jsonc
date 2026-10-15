@@ -15,6 +15,11 @@
 			"id": "afcb66f59a424787b5117c596edd29dc"
 		}
 	],
+	"triggers": {
+		"crons": [
+			"0 */6 * * *"
+		]
+	},
 	"env": {
 		"staging": {
 			"name": "pi-core-api-staging",
@@ -26,7 +31,12 @@
 					"binding": "HYPERDRIVE",
 					"id": "afcb66f59a424787b5117c596edd29dc"
 				}
-			]
+			],
+			"triggers": {
+				"crons": [
+					"0 */6 * * *"
+				]
+			}
 		}
 	}
 }
