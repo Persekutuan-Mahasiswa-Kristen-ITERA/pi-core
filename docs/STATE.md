@@ -50,22 +50,27 @@ Workers Trace Events documents the field as `CPUTimeMs`).
 | Warm CPU (rest of a burst) | ~14–40 ms | — |
 | HTTP result | 50/50 requests → **200**; no error 1102 (`exceededCpu`) | — |
 
-⚠️ **Open risk (needs owner decision).** *Every* measured request exceeds the documented Workers Free
-CPU limit (10 ms), yet none was rejected with error 1102. Either (a) the Cloudflare account is on a
-**paid** Workers plan, or (b) we are inside the runtime's per-isolate "built-in flexibility" allowance
-and will start failing once traffic grows. Even **warm** requests (14–40 ms) are over the Free limit,
-so the Next.js/OpenNext server does not fit Workers Free as-is — ADR-0008/ADR-0010 assumed Free.
-Owner must confirm the account's Workers plan before Epic 2 builds on this.
+⚠️ **Open risk — confirmed on Workers Free.** The owner's dashboard screenshot (2026-10-15) shows the
+account is on **Workers Free ($0, "Current plan")**, where the documented CPU limit is **10 ms per
+request**. Our measured CPU (warm **14–40 ms**, cold **120–300 ms**) is **above that limit on every
+request**, yet **150+ requests across two bursts all returned 200** — no `exceededCpu` outcome, no
+error 1102. We are therefore living inside the runtime's per-isolate "built-in flexibility" allowance,
+which Cloudflare documents as applying only while overages stay *infrequent*.
+**Conclusion: the app runs today, but the Next.js/OpenNext server has no documented CPU headroom on
+Workers Free.** Before Epic 4 builds the UI on this, we need a decision (see *In progress / next*):
+(A) accept + monitor, (B) go static-first and move data to a thin Hono API Worker (keeps Free), or
+(C) move to Workers Paid ($5/mo). ADR to follow once the owner chooses.
 
 ## In progress / next concrete step
-**Epic 1 (Foundation) complete — at the Epic 1 review gate.** All five stories (1-1…1-5) are done. **Waiting on the owner:** (a) confirm the Cloudflare Workers plan (Blockers #5) — the measured CPU exceeds the Free limit on every request — and (b) review the baseline numbers. After that: **Epic 2 (Data & RBAC)**, starting with story `2-1-db-package-hyperdrive-first-migration`. Production deploy and paid resources stay approval-gated.
+**Epic 1 (Foundation) complete — at the Epic 1 review gate.** All five stories (1-1…1-5) are done. **Waiting on the owner:** (a) review the baseline numbers, and (b) choose the Free-tier rendering strategy (**Blockers #6**). That choice gates **Epic 4 (UI)** only — **Epic 2 (Data & RBAC)** can start now with story `2-1-db-package-hyperdrive-first-migration` (`packages/db` + Drizzle + first migration + Hyperdrive wiring). Production deploy and paid resources stay approval-gated.
 
 ## Blockers needing the owner (collect here, ask in one batch)
 1. ~~Figma MCP not authorised~~ — **resolved 2026-10-15**: owner completed `hermes mcp login figma`; `hermes mcp test figma` → **✓ Connected, 42 tools**; the session registered **46 `mcp__figma__*` tools** (`logs/agent.log`). Step 4 (UX) is now done.
 2. ~~Confirm ADR-0002 interpretation~~ — **confirmed by the owner 2026-10-15**: all Kepala Departemen + Kepala Biro hold `organization_admin` (O-scope, org-wide).
 3. ~~Epics & stories review (gate)~~ — **accepted by the owner 2026-10-15**, then extended with the real-time requirement; plan is now **8 epics / 46 stories** (`epics.md`). Architecture **approved 2026-10-15** (ADR-0010 = Workers Free CPU mitigations).
 4. ~~Authenticate `wrangler` with Cloudflare~~ — **resolved 2026-10-15**: owner ran `wrangler login` (`biroitpmkitera@gmail.com`). Account-level `workers.dev` subdomain = **`pmkitera`** (registered during the first deploy).
-5. **Confirm the Cloudflare Workers plan — blocks the Epic 2 assumption.** Measured CPU is **14–303 ms per request**, all above the Workers Free limit of **10 ms**, yet every request returns **200** (no `exceededCpu`/1102). Owner: check `dash.cloudflare.com` → Workers & Pages → Plans. Is this account **Free** or **Paid (~$5/mo)**? If Free, the Next.js/OpenNext server does not fit and we must choose a mitigation (ADR-0010 split / thin API, or accept the paid tier). **Never change a plan tier without the owner's approval.**
+5. ~~Confirm the Cloudflare Workers plan~~ — **resolved 2026-10-15**: owner's screenshot shows **Workers Free ($0, "Current plan")** — limit **10 ms CPU/request**. Measured CPU is **14–303 ms**, above the limit, yet **150+ requests all returned 200** with no `exceededCpu`. The Worker *works* today but has **no documented CPU headroom** → decision needed (see *Baseline measurements* and *In progress / next*).
+6. **DECISION (owner): Free-tier rendering strategy.** Choose (A) accept + monitor, (B) **static-first + thin Hono API Worker** (keeps Free — recommended), or (C) Workers Paid ($5/mo). Needed **before Epic 4 (UI)**; Epic 2/3 (db, `can()`, auth) can proceed meanwhile.
 
 ## Decisions log (links to ADRs)
 - ADR-0001 — Adopt BMAD 6.12.3 → `docs/decisions/0001-adopt-bmad.md`
@@ -89,6 +94,7 @@ Owner must confirm the account's Workers plan before Epic 2 builds on this.
 - 2026-10-15: accepted the plan and **added the real-time requirement** (→ ADR-0011, Epic 8).
 
 ## Session notes (newest first)
+- **2026-10-15 (Hermes), session 15:** Owner's screenshot confirmed the account is on **Workers Free** (limit 10 ms CPU/request). Stress-tested staging with **100 consecutive requests → 100/100 HTTP 200**, no `exceededCpu`, no error 1102. Verified from independent sources (workers-go, workerd `worker-interface.capnp`, error-1102 guides) that tail `cpuTime` is in **milliseconds**. Conclusion: we run on the runtime's "built-in flexibility" with **no documented CPU headroom** on Free → recorded as **Blocker #6 (owner decision)**. Epic 1 remains complete; Epic 2 not blocked.
 - **2026-10-15 (Hermes), session 14:** Story **1.5 (baseline measurements)** done → **Epic 1 (Foundation) complete**. Measured on staging: gzip **822.30 KiB** (27% of the 3 MiB Free limit), startup **18 ms**, CPU **min 14 / avg 55.4 / max 303 ms** (n=28) — **all above the Free 10 ms limit**, yet 50/50 requests returned **200** (no error 1102). Recorded in STATE; verified commands filled into `AGENTS.md` → `## Commands`. **Blocked on owner:** confirm the Cloudflare Workers plan. Next: Epic 1 review → Epic 2.
 - **2026-10-15 (Hermes), session 13:** Story **1.4 (staging deploy)** done. Worker `pi-core-web-staging` live di https://pi-core-web-staging.pmkitera.workers.dev (**200 OK**). Ditemukan bug adapter↔Next 16.4 (`Unexpected loadManifest(preview-props.json)` → Cloudflare error 1101) dan diperbaiki dengan mem-pin Next ke **16.3.8** → **ADR-0012**. Sprint: `1-4: done`. Next: story 1.5 (baseline CPU/bundle measurements).
 - **2026-10-15 (Hermes), session 12:** Story **1.3 (CI pipeline)** implemented and verified. Repo public dibuat di organisasi `Persekutuan-Mahasiswa-Kristen-ITERA/pi-core` (owner memilih public karena plan org Free — branch protection hanya gratis untuk repo public). CI GitHub Actions hijau; branch protection + required check aktif; Dependabot aktif. `pnpm audit` bersih setelah override `glob ≥10.5.0`. **Blocker baru:** `wrangler` belum login → story 1.4 menunggu autentikasi owner. Sprint: `1-3: done`. Next: story 1.4.
