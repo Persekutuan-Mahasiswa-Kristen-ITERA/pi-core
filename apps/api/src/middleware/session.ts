@@ -22,6 +22,9 @@ export const sessionMiddleware = createMiddleware<AppEnv>(async (c, next) => {
   await withDb(c.env.HYPERDRIVE, async (db) => {
     const auth = createAuth(db, c.env);
     c.set("auth", auth);
+    // Expose the request's client so routes reuse this connection instead of opening a second one
+    // (Hyperdrive owns pooling — ADR-0009).
+    c.set("db", db);
 
     const session = await auth.api.getSession({ headers: c.req.raw.headers });
 

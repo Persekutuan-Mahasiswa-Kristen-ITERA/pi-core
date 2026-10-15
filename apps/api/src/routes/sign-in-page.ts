@@ -73,6 +73,25 @@ signInPageRoutes.get("/", (c) => {
   const actor = c.get("actor");
   const email = c.get("sessionEmail");
 
+  /**
+   * Mobile hand-off (story 3.3): when the app sends its PKCE challenge and deep link, the post-consent
+   * redirect goes to the hand-off endpoint instead of back to this page. Passed through verbatim —
+   * `finish` re-validates the redirect URI against the configured allowlist, so nothing is trusted
+   * merely because it arrived here.
+   */
+  const redirectUri = c.req.query("redirect_uri") ?? "";
+  const codeChallenge = c.req.query("code_challenge") ?? "";
+  const state = c.req.query("state") ?? "";
+  const isMobile = redirectUri !== "" && codeChallenge !== "";
+
+  const callbackUrl = isMobile
+    ? `/api/v1/auth/mobile/finish?${new URLSearchParams({
+        redirect_uri: redirectUri,
+        code_challenge: codeChallenge,
+        ...(state !== "" ? { state } : {}),
+      }).toString()}`
+    : "/sign-in";
+
   if (actor !== undefined && email !== undefined) {
     const roles =
       actor.roles.length > 0
@@ -114,7 +133,7 @@ signInPageRoutes.get("/", (c) => {
               method: 'POST',
               headers: { 'content-type': 'application/json' },
               credentials: 'same-origin',
-              body: JSON.stringify({ provider: 'google', callbackURL: '/sign-in' }),
+              body: JSON.stringify({ provider: 'google', callbackURL: ${JSON.stringify(callbackUrl)} }),
             });
             const data = await res.json();
             if (data && data.url) { window.location.href = data.url; return; }

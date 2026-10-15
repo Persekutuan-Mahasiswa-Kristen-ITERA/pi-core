@@ -50,6 +50,13 @@
       "when": 1792079968464,
       "tag": "0006_better_auth_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792090317603,
+      "tag": "0007_mobile_auth_codes",
+      "breakpoints": true
     }
   ]
 }

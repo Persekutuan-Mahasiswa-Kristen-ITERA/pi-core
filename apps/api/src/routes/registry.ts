@@ -66,6 +66,33 @@ export const ROUTE_AUTHORIZATION: readonly RouteAuthorization[] = [
     reason:
       "Minimal same-origin sign-in page, a staging placeholder for the Epic 4 UI. Public because a sign-in page must be reachable without a session. It shows the session it obtained (member id + effective roles) as the end-to-end proof of the chain; it exposes nothing that get-session does not already expose to the cookie holder.",
   },
+  {
+    file: "routes/mobile-auth.ts",
+    method: "GET",
+    path: "/finish",
+    mountedAt: "/api/v1/auth/mobile",
+    public: true,
+    reason:
+      "Leg 2 of the mobile hand-off (story 3.3). Public because the system browser reaches it with a cookie session, not an API credential — and it is admitted anyway: sessionMiddleware must have produced an actor (otherwise 400), which means the member already passed allowlist, invite-only and email-verified checks. It mints a single-use code bound to the app's PKCE challenge and the configured redirect URI, and refuses any redirect URI that is not on the list, so it cannot be used as an open redirector.",
+  },
+  {
+    file: "routes/mobile-auth.ts",
+    method: "POST",
+    path: "/exchange",
+    mountedAt: "/api/v1/auth/mobile",
+    public: true,
+    reason:
+      "Leg 3 of the mobile hand-off (story 3.3). Public because the credential IS the payload: a single-use code plus the PKCE verifier that hashes to the challenge bound to it at mint time. Wrong verifier, expired code and already-used code all return one generic invalid_grant (NFR-3) while the precise reason goes to the audit log; the code is stored only as a SHA-256 hash, so a database read cannot be replayed.",
+  },
+  {
+    file: "routes/mobile-auth.ts",
+    method: "POST",
+    path: "/sign-out",
+    mountedAt: "/api/v1/auth/mobile",
+    public: true,
+    reason:
+      "Ends exactly the session the caller presents as a Bearer token — it deletes only the row matching that token, so it can revoke nothing else and grants no access. Returning ok for an unknown token is deliberate: sign-out should be idempotent and must not report whether a token was valid.",
+  },
 ];
 
 /** Every registration the coverage test expects to find, as `file METHOD path`. */

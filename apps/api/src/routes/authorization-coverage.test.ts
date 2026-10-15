@@ -29,6 +29,9 @@ const NON_ROUTE_CALLS: readonly string[] = [
   "routes/auth.ts GET auth",
   "routes/sign-in-page.ts GET actor",
   "routes/sign-in-page.ts GET sessionEmail",
+  "routes/mobile-auth.ts GET db",
+  "routes/mobile-auth.ts GET actor",
+  "routes/mobile-auth.ts GET requestId",
 ];
 
 function sourceFiles(dir: string): string[] {

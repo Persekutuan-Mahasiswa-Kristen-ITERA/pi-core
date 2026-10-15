@@ -1,3 +1,4 @@
+import type { Database } from "@pi-core/db";
 import type { Actor } from "@pi-core/shared";
 import type { AuthInstance } from "./auth";
 
@@ -20,6 +21,12 @@ export interface Env {
   GOOGLE_CLIENT_ID: string;
   /** Google OAuth client secret. */
   GOOGLE_CLIENT_SECRET: string;
+  /**
+   * Comma-separated deep links the mobile hand-off may redirect to (story 3.3), e.g.
+   * `picore://auth`. Configured per environment so a crafted `redirect_uri` cannot make the endpoint
+   * an open redirector. Empty means the mobile hand-off is refused.
+   */
+  MOBILE_REDIRECT_URIS?: string;
 }
 
 /** Hono environment for this app. */
@@ -36,6 +43,12 @@ export interface AppEnv {
      * client is per request (ADR-0015). Set by `authMiddleware`.
      */
     auth?: AuthInstance;
+    /**
+     * The request's Drizzle client, opened by `sessionMiddleware` and closed when the request ends.
+     * Routes use this rather than opening a second connection: Hyperdrive owns pooling (ADR-0009), and
+     * one client per request is the rule the whole Worker is built around.
+     */
+    db?: Database;
     /**
      * The signed-in member's email, set alongside `actor`. Kept separate because it is display data
      * (the sign-in page shows it) while `actor` is authorization data.

@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "./env";
 import { authRoutes } from "./routes/auth";
 import { healthRoutes } from "./routes/health";
+import { mobileAuthRoutes } from "./routes/mobile-auth";
 import { signInPageRoutes } from "./routes/sign-in-page";
 
 /**
@@ -30,6 +31,9 @@ app.route("/api/auth", authRoutes);
 
 // Minimal same-origin sign-in page — a staging placeholder for the Epic 4 UI (see the file header).
 app.route("/sign-in", signInPageRoutes);
+
+// Mobile hand-off (story 3.3): the system browser returns here, the app exchanges the code for a token.
+app.route("/api/v1/auth/mobile", mobileAuthRoutes);
 
 app.notFound((c) => c.json({ error: { code: "not_found", message: "Not found" } }, 404));
 

@@ -18,6 +18,7 @@ import * as schema from "@pi-core/db/schema";
 import { GENERIC_SIGN_IN_DENIAL } from "@pi-core/shared";
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
+import { bearer } from "better-auth/plugins";
 import type { Env } from "./env";
 
 export type Auth = ReturnType<typeof createAuth>;
@@ -170,5 +171,13 @@ export function createAuth(db: Database, env: Env): AuthInstance {
 
     // No password sign-in exists in this product (FR-1).
     emailAndPassword: { enabled: false },
+
+    /**
+     * `bearer` lets a client authenticate with `Authorization: Bearer <session token>` instead of a
+     * cookie — which is how the mobile app carries its session (story 3.3). It changes nothing for the
+     * web: `sessionMiddleware` hands Better Auth the request headers either way, so both transports
+     * resolve to the same session and the same admission checks.
+     */
+    plugins: [bearer()],
   });
 }

@@ -103,3 +103,42 @@ export const authVerifications = pgTable(
 export type AuthSession = typeof authSessions.$inferSelect;
 export type AuthAccount = typeof authAccounts.$inferSelect;
 export type AuthVerification = typeof authVerifications.$inferSelect;
+
+/**
+ * One-time, single-use hand-off code for the mobile app (story 3.3).
+ *
+ * The flow: the app opens the **system browser** at our sign-in page with a PKCE challenge, Google
+ * consent happens there, and the browser lands on `/api/v1/auth/mobile/finish` — which holds a normal
+ * cookie session and therefore knows who just signed in. It mints one of these codes and redirects to
+ * the app's deep link. The app then exchanges the code **plus its PKCE verifier** for a session token
+ * and keeps that in `expo-secure-store`.
+ *
+ * Why not hand the session token straight to the deep link: a custom-scheme redirect is observable by
+ * other apps on the device, so the value that travels through it must be useless without the verifier,
+ * single-use, and short-lived. Hence: the **code is never stored** (only its SHA-256), the challenge is
+ * bound at mint time, and the row is marked consumed on exchange — a replay finds nothing.
+ */
+export const mobileAuthCodes = pgTable(
+  "mobile_auth_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** SHA-256 of the code. The code itself never touches the database or the logs (NFR-16). */
+    codeHash: text("code_hash").notNull().unique(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    /** The PKCE `S256` challenge the app generated; the verifier must hash to this. */
+    codeChallenge: text("code_challenge").notNull(),
+    /** The deep link the code may be delivered to — checked again at exchange time. */
+    redirectUri: text("redirect_uri").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("mobile_auth_codes_expires_idx").on(t.expiresAt),
+    index("mobile_auth_codes_member_idx").on(t.memberId),
+  ],
+);
+
+export type MobileAuthCode = typeof mobileAuthCodes.$inferSelect;

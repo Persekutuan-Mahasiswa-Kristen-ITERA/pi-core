@@ -56,10 +56,10 @@ development_status:
 
   epic-3: in-progress
   3-1-google-sign-in-member-linking-web: done
-  3-2-domain-allowlist-invite-only: in-progress
+  3-2-domain-allowlist-invite-only: done
   3-3-mobile-sign-in-expo: backlog
-  3-4-bootstrap-first-super_admin: in-progress
-  3-5-session-revocation: backlog
+  3-4-bootstrap-first-super_admin: done
+  3-5-session-revocation: done
   epic-3-retrospective: optional
 
   epic-4: backlog
