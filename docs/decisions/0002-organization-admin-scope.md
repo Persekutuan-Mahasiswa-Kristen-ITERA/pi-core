@@ -18,7 +18,7 @@
 
 ## Consequences
 - Positive: department/bureau heads gain org-wide administrative capability (members, assignments, periods, org units, audit read) — matching the owner's stated governance intent.
-- Negative/risk: `organization_admin` is **O-scoped (org-wide)**. This widens privileges for up to 8 people, including access to sensitive fields and the audit log. If the owner intended *department-scoped* admin, the matrix should instead add U-scoped create/deactivate for heads. **Flagged for owner confirmation.**
+- Negative/risk: `organization_admin` is **O-scoped (org-wide)**. This widens privileges for up to 8 people, including access to sensitive fields and the audit log. The owner **confirmed this interpretation on 2026-10-15** — org-wide admin for all Kepala Departemen/Biro, not department-scoped.
 - Unchanged: deny-by-default, single `can()`, last-`super_admin` protection, audit on every grant change.
 
 ## Verification

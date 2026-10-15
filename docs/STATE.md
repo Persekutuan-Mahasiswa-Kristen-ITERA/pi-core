@@ -28,8 +28,8 @@ Node v26.7.0 · pnpm 10.20.0 · npm 11.19.0 · git 2.43.0 · wrangler 4.151.0 (v
 **Stage 1 step 4 — UX**: reconcile `docs/DESIGN.md` with the Figma file via the Figma MCP (skill `figma-to-code`), replace *(approx.)* tokens with exact values, and confirm the screen inventory. **Blocked**: the Figma MCP tools are not reachable from the agent session (see Blockers).
 
 ## Blockers needing the owner (collect here, ask in one batch)
-1. **Figma MCP tools not reachable from the agent session.** Verified: `hermes mcp list` shows `figma ✓ enabled` and OAuth tokens exist (`~/.hermes/mcp-tokens/figma.*`), but `tool_call` on `mcp__figma__whoami` returns *"not available in this session"* and `tool_search` finds no `figma` tools. Likely the session toolset predates the MCP reload. **Fix:** start a fresh Hermes session in the repo (or re-run the MCP reload) so the 46 `mcp__figma__*` tools load; then step 4 can proceed.
-2. **Confirm ADR-0002 interpretation (non-blocking).** "Make other departments also admin" was read literally as: all Kepala Departemen + Kepala Biro hold `organization_admin` (**O-scope, org-wide**). If department-scoped admin was meant, say so and the matrix will be narrowed.
+1. **Figma MCP is registered but NOT authorised** (root cause, verified 2026-10-15). `hermes mcp list` shows `figma ✓ enabled`, and `~/.hermes/mcp-tokens/` holds only the DCR **client registration** (`figma.client.json`) and server metadata (`figma.meta.json`) — there is **no access/refresh token**. Every connect attempt logs *"no cached tokens found"*, the server is **parked**, and `MCP: registered 0 tool(s) from 0 server(s)` (`~/.hermes/logs/agent.log`). `hermes mcp add` performed dynamic client registration, but the **user authorisation step never completed**. **Fix (owner, interactive):** run `hermes mcp login figma` in a terminal and finish the browser flow (headless alternative: `hermes mcp login figma --flow device`), then restart the session; the 46 `mcp__figma__*` tools will load and step 4 can proceed.
+2. ~~Confirm ADR-0002 interpretation~~ — **confirmed by the owner 2026-10-15**: all Kepala Departemen + Kepala Biro hold `organization_admin` (O-scope, org-wide).
 
 ## Decisions log (links to ADRs)
 - ADR-0001 — Adopt BMAD 6.12.3 → `docs/decisions/0001-adopt-bmad.md`
@@ -42,8 +42,10 @@ Node v26.7.0 · pnpm 10.20.0 · npm 11.19.0 · git 2.43.0 · wrangler 4.151.0 (v
 ## Owner approvals received
 - 2026-10-15: enabled the Figma MCP server and trusted the repo for project skills.
 - 2026-10-15: **approved the PRD** (with answers to the 10 open questions).
+- 2026-10-15: **confirmed ADR-0002** — all Kepala Departemen + Kepala Biro hold `organization_admin` (O-scope).
 
 ## Session notes (newest first)
+- **2026-10-15 (Hermes), session 4:** Owner confirmed ADR-0002 (org-wide admin) and restarted the session. Diagnosed the Figma MCP root cause: the server is registered but **not authorised** (only DCR client + metadata cached, no access token) → parked, 0 tools. Step 4 (UX) stays blocked pending `hermes mcp login figma`.
 - **2026-10-15 (Hermes), session 3:** Owner approved the PRD and answered all 10 open questions. Folded answers into `prd.md` (`status: final`), wrote ADR-0002…ADR-0006, synced `ARCHITECTURE.md`/`DESIGN.md`. Blocker: Figma MCP tools not reachable from this session → step 4 (UX) pending.
 - **2026-10-15 (Hermes), session 2:** Figma MCP + project skills confirmed active. Ran Stage 1 step 2 (lean brief) and step 3 (PRD draft) in Fast path, answering from the kit docs; both written under `_bmad-output/planning-artifacts/` with memlogs. Status → `awaiting owner review` at the PRD gate. Blockers cleared.
 - **2026-10-15 (Hermes), session 1:** Setup verified — BMAD 6.12.3 usable; 54 BMAD + 5 kit skills present, no collision; versions captured. Initialized git (`git init -b main`), added `.gitignore`, wrote ADR-0001, ran Stage 1 step 1 (project-context → AGENTS.md managed block), first commit.
