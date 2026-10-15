@@ -55,7 +55,7 @@ export const ROUTE_AUTHORIZATION: readonly RouteAuthorization[] = [
     mountedAt: "/api/auth",
     public: true,
     reason:
-      "Better Auth's own handler (ADR-0007/ADR-0015): this IS the sign-in attempt, so there is no session to authorize yet. Admission is still enforced — the allowlist (FR-3), invite-only (FR-4) and email_verified (NFR-1) checks run in resolveSignIn around the callback, and every refusal is audited (FR-7).",
+      "Better Auth's own handler (ADR-0007/ADR-0015): this IS the sign-in attempt, so there is no session to authorize yet. NOT YET WIRED: the allowlist (FR-3), invite-only (FR-4) and email_verified (NFR-1) checks in resolveSignIn are not called from the OAuth callback yet, so today any Google account that completes consent would get a session and a members row. That hook is the remaining work of story 3.1; until it lands, keep the OAuth consent screen in Testing mode so only listed test users can consent.",
   },
 ];
 

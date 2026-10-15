@@ -6,8 +6,10 @@
  * `/api/auth/sign-in/social`. Inside a mounted sub-app, `"*"` covers everything under the mount.
  *
  * Declared **public** in the FR-25 registry: this IS the sign-in attempt, so there is no session to
- * authorize yet. Admission is enforced by `resolveSignIn` around the callback (FR-3, FR-4, NFR-1)
- * and every refusal is audited (FR-7).
+ * authorize yet. **The admission rules are not enforced yet** — `resolveSignIn` (FR-3, FR-4, NFR-1)
+ * is written and tested but not yet called from the OAuth callback, so as of now any Google account
+ * that completes consent would receive a session. Wiring that hook is the rest of story 3.1; keep the
+ * consent screen in Testing mode until it lands.
  */
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
