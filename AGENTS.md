@@ -50,8 +50,30 @@ The owner will often send only that one word. It means: *keep building the proje
 - Auth: Google Sign-In only. Library choice (e.g. Better Auth with Google + OIDC-provider + Expo support) must be verified and recorded in an ADR.
 
 ## Commands
-Fill this section in Phase 0 with the *verified* commands (install, dev, lint, typecheck, test, build, db:migrate, db:seed,
-deploy:staging, mobile dev) and keep it current.
+Verified on 2026-10-15 (Node 26 / pnpm 10.20.0). Run from the repo root.
+
+| Task | Command | Notes |
+|---|---|---|
+| Install | `pnpm install` | Frozen in CI: `pnpm install --frozen-lockfile` |
+| Typecheck | `pnpm -r typecheck` (or `pnpm typecheck` via Turbo) | |
+| Lint | `pnpm -r lint` | Shared ESLint flat config from `@pi-core/config` |
+| Test | `pnpm -r test` | No test suites yet (Epic 2 adds them) |
+| Format | `pnpm format` / `pnpm format:check` | Prettier |
+| Build (all) | `pnpm build` (Turbo) | |
+| Build web (Next) | `pnpm --filter @pi-core/web build` | `next build` only |
+| Build web (Worker) | `pnpm --filter @pi-core/web build:worker` | OpenNext → `.open-next/worker.js` |
+| Dev web | `pnpm --filter @pi-core/web dev` | Next dev server on :3000 |
+| Preview Worker locally | `pnpm --filter @pi-core/web preview` | Builds then `wrangler dev` |
+| **Deploy staging** | `pnpm --filter @pi-core/web exec wrangler deploy --env staging` | Worker `pi-core-web-staging` |
+| Tail staging logs | `pnpm --filter @pi-core/web exec wrangler tail --env staging` | Reports `cpuTime`/`wallTime` (ms) |
+| Set a secret | `pnpm --filter @pi-core/web exec wrangler secret put <NAME> --env staging` | Never commit secrets; see `.env.example` |
+| List secrets | `pnpm --filter @pi-core/web exec wrangler secret list --env staging` | |
+| Worker types | `pnpm --filter @pi-core/web cf-typegen` | Generates `cloudflare-env.d.ts` |
+
+Staging URL: **https://pi-core-web-staging.pmkitera.workers.dev** (Cloudflare account `biroitpmkitera@gmail.com`, `workers.dev` subdomain `pmkitera`).
+
+Not yet applicable: `db:migrate` / `db:seed` (Epic 2), mobile dev `pnpm --filter @pi-core/mobile dev` (Epic 5 — `apps/mobile` does not exist yet).
+Production deploy is approval-gated; there is no `deploy:production` script.
 
 ## Workflow: Inspect → Understand → Plan → Implement → Validate → Report
 - Work autonomously inside the approved scope. Make small, reviewable commits (conventional commits), one concern each.
