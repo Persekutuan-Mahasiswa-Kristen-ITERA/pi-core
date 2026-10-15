@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 10-15-2026 11:20
-last_updated: 10-15-2026 14:36
+last_updated: 10-15-2026 14:46
 project: PI-CORE
 project_key: NOKEY
 tracking_system: file-system
@@ -46,7 +46,7 @@ development_status:
 
   epic-2: in-progress
   2-1-db-package-hyperdrive-wiring-first-migration: done
-  2-2-seed-the-organization-structure: backlog
+  2-2-seed-the-organization-structure: in-progress
   2-3-periods-positions-and-assignments-schema: backlog
   2-4-roles-permissions-and-position_roles-seed: backlog
   2-5-the-can-authorization-core: backlog
