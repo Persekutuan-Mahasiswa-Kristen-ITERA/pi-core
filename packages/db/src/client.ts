@@ -1,5 +1,5 @@
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
+import { Client, Pool } from "pg";
 import * as schema from "./schema";
 
 export type Database = NodePgDatabase<typeof schema>;
@@ -15,30 +15,31 @@ export interface DbHandle {
 }
 
 /**
- * Build a Drizzle client over a Postgres connection string.
- *
- * On Workers the string comes from the `HYPERDRIVE` binding; locally it is
- * `DIRECT_DATABASE_URL`. `pg` requires the `nodejs_compat` compatibility flag.
+ * Pool-backed Drizzle client — for **scripts, tests and migrations only**
+ * (`db:smoke`, seeds, `drizzle-kit`). Do **not** use this in a Worker: a pool that
+ * outlives the request keeps I/O open and workerd cancels such requests.
  */
 export function createDb(connectionString: string): DbHandle {
   const pool = new Pool({ connectionString, max: 5 });
   return { db: drizzle(pool, { schema }), pool };
 }
 
-// One pool per Worker isolate: the module scope is reused across requests, so we cache
-// the handle instead of opening a connection per request.
-let cached: DbHandle | undefined;
-
-/** Get (and lazily create) the isolate-wide Drizzle client for a Hyperdrive binding. */
-export function getDb(hyperdrive: HyperdriveLike): Database {
-  cached ??= createDb(hyperdrive.connectionString);
-  return cached.db;
-}
-
-/** Close the cached pool — used by tests and graceful shutdown. */
-export async function closeDb(): Promise<void> {
-  if (cached) {
-    await cached.pool.end();
-    cached = undefined;
+/**
+ * Run `fn` with a Drizzle client on a **single short-lived connection** — the Worker
+ * pattern (ADR-0009). Cloudflare's Hyperdrive owns the real connection pool, so the
+ * Worker opens one client per request and closes it before responding. Caching a pool
+ * across requests (the previous implementation) makes requests hang and get cancelled
+ * by the runtime: verified locally — 2 of 3 requests died with "code had hung".
+ */
+export async function withDb<T>(
+  hyperdrive: HyperdriveLike,
+  fn: (db: Database) => Promise<T>,
+): Promise<T> {
+  const client = new Client({ connectionString: hyperdrive.connectionString });
+  await client.connect();
+  try {
+    return await fn(drizzle(client, { schema }));
+  } finally {
+    await client.end();
   }
 }

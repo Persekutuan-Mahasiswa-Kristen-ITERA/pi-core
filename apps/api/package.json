@@ -1,0 +1,27 @@
+{
+  "name": "@pi-core/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PI-CORE thin API Worker (Hono): /api/v1/*, RealtimeHub DO, OIDC and Hyperdrive DB access.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy:staging": "wrangler deploy --env staging",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "echo \"no tests yet in @pi-core/api\" && exit 0",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+  },
+  "dependencies": {
+    "@pi-core/db": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "hono": "^4.9.10"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261006.1",
+    "@pi-core/config": "workspace:*",
+    "eslint": "^9.36.0",
+    "typescript": "^5.9.2",
+    "wrangler": "^4.0.0"
+  }
+}

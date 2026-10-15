@@ -131,6 +131,14 @@ So that we know the design fits before building on it.
 **Given** a representative flow, **When** I measure, **Then** CPU time and compressed Worker size are recorded in `docs/STATE.md`.
 **And** the verified commands (install/dev/lint/typecheck/test/build/deploy:staging/mobile dev) are filled into `AGENTS.md` "## Commands" (ADR-0008/0010).
 
+### Story 1.6: Thin API Worker (`apps/api`) — ADR-0013 follow-up
+As the implementation agent,
+I want a thin **Hono** Worker that serves `/api/v1/*` and reaches Postgres through Hyperdrive,
+So that dynamic work runs off the Next.js rendering path and stays inside the Workers Free CPU budget.
+**Acceptance Criteria:**
+**Given** the API Worker deployed to staging, **When** I call `GET /api/v1/health`, **Then** it returns `{ "ok": true }` after a real `select 1` through the `HYPERDRIVE` binding.
+**And** exactly one connection is opened per request (Hyperdrive owns the pool — a cached module-scope pool makes workerd cancel requests); `/` and unknown paths answer JSON; the web app still renders statically (AD-17).
+
 ## Epic 2: Data & RBAC
 
 The data model plus the pure `can()` core, seeded and tested.
