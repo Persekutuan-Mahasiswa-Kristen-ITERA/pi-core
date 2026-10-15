@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "PI-CORE",
+    "slug": "pi-core",
+    "scheme": "picore",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "id.web.pmkitera.core"
+    },
+    "android": {
+      "package": "id.web.pmkitera.core"
+    },
+    "plugins": ["expo-secure-store", "expo-web-browser"]
+  }
+}

@@ -8,7 +8,12 @@ onlyBuiltDependencies:
   - esbuild
   - workerd
 
-# Force a patched glob (GHSA-5j98-mcp5-4vw2) reached transitively via
-# @opennextjs/cloudflare -> @opennextjs/aws -> @node-minify/core.
+# Patched transitive dependencies. Keep overrides HERE, not in package.json: pnpm 10 reads this file,
+# and an `overrides` block in package.json silently shadows these instead of merging with them.
 overrides:
+  # GHSA-5j98-mcp5-4vw2 — via @opennextjs/cloudflare -> @opennextjs/aws -> @node-minify/core.
   "glob@>=10.2.0 <10.5.0": ">=10.5.0"
+  # GHSA-5p2g-fcmc-qvqq, GHSA-w3rx-r6r6-pgpr — via expo -> @expo/metro -> image-size.
+  "image-size@<=2.0.2": ">=2.0.3"
+  # GHSA-6g55-p6wh-862q, GHSA-r28c-9q8g-f849 — via expo -> metro/postcss toolchain.
+  "postcss@<=8.5.17": ">=8.5.18"

@@ -1,0 +1,12 @@
+{
+  "extends": "@pi-core/config/tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": ["ES2023", "DOM"],
+    "types": ["react", "react-native"],
+    "noEmit": true,
+    "allowJs": true
+  },
+  "include": ["App.tsx", "index.js", "src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules"]
+}
