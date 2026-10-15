@@ -83,8 +83,14 @@ export function createAuth(db: Database, env: Env): AuthInstance {
        * an empty list linking additionally requires Google to report the address as verified
        * (`!trusted && !emailVerified` refuses). Adding "google" here would skip that check — so NFR-1
        * is enforced by the library rather than by us remembering to.
+       *
+       * `requireLocalEmailVerified: false` — our `members.email_verified` is set **after** linking,
+       * not before; demanding it be set **before** linking would deadlock the first sign-in.
        */
-      accountLinking: { enabled: true },
+      accountLinking: {
+        enabled: true,
+        requireLocalEmailVerified: false,
+      },
     },
     verification: { modelName: "verifications" },
 
