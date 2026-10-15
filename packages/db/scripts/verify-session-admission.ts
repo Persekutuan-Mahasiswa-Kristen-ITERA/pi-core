@@ -11,10 +11,10 @@
  *   DIRECT_URL=… pnpm --filter @pi-core/db exec tsx scripts/verify-session-admission.ts
  */
 import type { SignInDecision } from "@pi-core/shared";
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { createDb } from "../src/client";
-import { auditLogs, members } from "../src/schema";
-import { loadAllowedDomains, resolveSessionAdmission } from "../src/sign-in";
+import { auditLogs, authAccounts, members } from "../src/schema";
+import { loadAllowedDomains, resolveSessionAdmission, syncGoogleIdentity } from "../src/sign-in";
 
 const url = process.env.DIRECT_URL ?? process.env.DIRECT_DATABASE_URL;
 if (!url) {
@@ -147,6 +147,53 @@ try {
   const ghost = await resolveSessionAdmission(db, "00000000-0000-0000-0000-000000000000");
   check("allowed", ghost.decision.allowed, false);
   check("member", ghost.member, null);
+
+  // ---- identity sync (FR-4 + NFR-1) ----------------------------------------
+  console.log("\nFR-4/NFR-1 — Google's sub and verified claim are recorded from the account row");
+  const freshRows = await db
+    .insert(members)
+    .values({ email: `${TAG}-fresh@student.itera.ac.id`, fullName: "Fresh", emailVerified: false })
+    .returning({ id: members.id });
+  const freshId = freshRows[0]!.id;
+  ids.push(freshId);
+
+  const beforeSync = await resolveSessionAdmission(db, freshId);
+  check("refused before the link (email_verified is still false)", beforeSync.decision.allowed, false);
+  check("reason", reasonOf(beforeSync.decision), "email_not_verified");
+
+  const noAccount = await syncGoogleIdentity(db, freshId);
+  check("no google account row -> nothing to sync", noAccount, { linked: false, verified: false });
+
+  await db.insert(authAccounts).values({
+    accountId: `${TAG}-sub`,
+    providerId: "google",
+    userId: freshId,
+  });
+
+  const synced = await syncGoogleIdentity(db, freshId);
+  check("linked the sub and marked verified", synced, { linked: true, verified: true });
+  const afterSync = await db
+    .select({ googleSub: members.googleSub, emailVerified: members.emailVerified })
+    .from(members)
+    .where(eq(members.id, freshId));
+  check("google_sub written", afterSync[0]?.googleSub, `${TAG}-sub`);
+  check("email_verified written", afterSync[0]?.emailVerified, true);
+
+  check("admitted after the sync", (await resolveSessionAdmission(db, freshId)).decision.allowed, true);
+  check("idempotent on a second run", await syncGoogleIdentity(db, freshId), {
+    linked: false,
+    verified: false,
+  });
+  const linkAudits = await db
+    .select({ after: auditLogs.after })
+    .from(auditLogs)
+    .where(and(eq(auditLogs.action, "auth.identity_linked"), eq(auditLogs.entityId, freshId)));
+  check("exactly one link audit row", linkAudits.length, 1);
+  check(
+    "the audit records what changed",
+    (linkAudits[0]?.after as { linkedGoogleSub?: boolean } | undefined)?.linkedGoogleSub,
+    true,
+  );
 } finally {
   if (ids.length > 0) {
     // `audit_logs` is append-only by trigger (FR-43), so the denial rows this script produced are

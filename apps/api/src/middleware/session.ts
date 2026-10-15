@@ -12,7 +12,7 @@
  *
  * Being unauthenticated is normal — it is not an error here. The route decides what to do.
  */
-import { authSessions, loadActor, resolveSessionAdmission, withDb } from "@pi-core/db";
+import { authSessions, loadActor, resolveSessionAdmission, syncGoogleIdentity, withDb } from "@pi-core/db";
 import { eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
 import { createAuth } from "../auth";
@@ -31,12 +31,17 @@ export const sessionMiddleware = createMiddleware<AppEnv>(async (c, next) => {
       const ip = c.req.header("cf-connecting-ip");
       const userAgent = c.req.header("user-agent");
       const requestId = c.get("requestId");
-
-      const admission = await resolveSessionAdmission(db, session.user.id, {
+      const request = {
         ...(ip !== undefined ? { ip } : {}),
         ...(userAgent !== undefined ? { userAgent } : {}),
         ...(requestId !== undefined ? { requestId } : {}),
-      });
+      };
+
+      // Before admission, not after: on a member's first sign-in `email_verified` is still false, and
+      // admission requires it (NFR-1). This is where Google's `sub` and verified address land (FR-4).
+      await syncGoogleIdentity(db, session.user.id, request);
+
+      const admission = await resolveSessionAdmission(db, session.user.id, request);
 
       if (admission.decision.allowed) {
         const loaded = await loadActor(db, session.user.id);

@@ -16,10 +16,10 @@ import {
   type AllowedDomain,
   type SignInDecision,
 } from "@pi-core/shared";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { Database } from "./client";
 import { writeAudit, type AuthorizationRequest } from "./access";
-import { allowedEmailDomains, members } from "./schema";
+import { allowedEmailDomains, authAccounts, members } from "./schema";
 
 /** Active allowlist entries, as the pure decision expects them. */
 export async function loadAllowedDomains(db: Database): Promise<AllowedDomain[]> {
@@ -198,4 +198,69 @@ export async function resolveSessionAdmission(
   }
 
   return { decision, member };
+}
+
+/**
+ * Records what Google told us, once, on the request that follows a successful sign-in.
+ *
+ * The existence of a Google `accounts` row is itself the proof that Google reported the address as
+ * verified: Better Auth only creates or links a user when its `!trusted && !emailVerified` guard
+ * passes, and `trustedProviders` is deliberately unset (see `apps/api/src/auth.ts`). So this copies
+ * the provider's `accountId` (the `sub` claim) into `members.google_sub` and sets
+ * `members.email_verified = true` — the link FR-4 describes as happening at first login.
+ *
+ * It must run **before** admission: admission requires `email_verified` (NFR-1), and on a member's
+ * first sign-in that flag is still false. Without this, the very first request after consent would
+ * be refused by our own check.
+ *
+ * Idempotent — writes nothing and audits nothing when there is nothing to change.
+ */
+export async function syncGoogleIdentity(
+  db: Database,
+  memberId: string,
+  request?: AuthorizationRequest,
+): Promise<{ linked: boolean; verified: boolean }> {
+  const accountRows = await db
+    .select({ accountId: authAccounts.accountId })
+    .from(authAccounts)
+    .where(and(eq(authAccounts.userId, memberId), eq(authAccounts.providerId, "google")))
+    .limit(1);
+
+  const sub = accountRows[0]?.accountId;
+  if (sub === undefined) return { linked: false, verified: false };
+
+  const memberRows = await db
+    .select({ googleSub: members.googleSub, emailVerified: members.emailVerified })
+    .from(members)
+    .where(eq(members.id, memberId))
+    .limit(1);
+
+  const current = memberRows[0];
+  if (current === undefined) return { linked: false, verified: false };
+
+  const linked = current.googleSub === null;
+  const verified = !current.emailVerified;
+  if (!linked && !verified) return { linked: false, verified: false };
+
+  await db
+    .update(members)
+    .set({
+      ...(linked ? { googleSub: sub } : {}),
+      ...(verified ? { emailVerified: true } : {}),
+      updatedAt: new Date(),
+    })
+    .where(eq(members.id, memberId));
+
+  await writeAudit(db, {
+    actorMemberId: memberId,
+    action: "auth.identity_linked",
+    entityType: "member",
+    entityId: memberId,
+    after: { provider: "google", linkedGoogleSub: linked, markedEmailVerified: verified },
+    ip: request?.ip ?? null,
+    userAgent: request?.userAgent ?? null,
+    requestId: request?.requestId ?? null,
+  });
+
+  return { linked, verified };
 }
