@@ -16,10 +16,10 @@ import {
   type AllowedDomain,
   type SignInDecision,
 } from "@pi-core/shared";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { Database } from "./client";
 import { writeAudit, type AuthorizationRequest } from "./access";
-import { allowedEmailDomains, authAccounts, members } from "./schema";
+import { allowedEmailDomains, authAccounts, authSessions, members } from "./schema";
 
 /** Active allowlist entries, as the pure decision expects them. */
 export async function loadAllowedDomains(db: Database): Promise<AllowedDomain[]> {
@@ -198,6 +198,50 @@ export async function resolveSessionAdmission(
   }
 
   return { decision, member };
+}
+
+/**
+ * Revokes every session a member currently holds (FR-5, NFR-5).
+ *
+ * Call this whenever access ends — a deactivation, a suspension, a role removal — so the change takes
+ * effect immediately instead of waiting for the session to expire. It is a **belt** to the
+ * `sessionMiddleware` brace: that middleware re-checks admission on every request and drops a refused
+ * session anyway, but deleting up front means the row is gone rather than merely ignored.
+ *
+ * The window is therefore *zero*: the next request after revocation is unauthenticated. Audited, so a
+ * revocation is as traceable as the grant it undoes.
+ */
+export async function revokeSessionsForMember(
+  db: Database,
+  memberId: string,
+  params: { reason: string; actorMemberId?: string | null; request?: AuthorizationRequest },
+): Promise<number> {
+  const removed = await db
+    .delete(authSessions)
+    .where(eq(authSessions.userId, memberId))
+    .returning({ id: authSessions.id });
+
+  await writeAudit(db, {
+    actorMemberId: params.actorMemberId ?? null,
+    action: "auth.sessions_revoked",
+    entityType: "member",
+    entityId: memberId,
+    after: { reason: params.reason, sessionsRevoked: removed.length },
+    ip: params.request?.ip ?? null,
+    userAgent: params.request?.userAgent ?? null,
+    requestId: params.request?.requestId ?? null,
+  });
+
+  return removed.length;
+}
+
+/** Active session count for a member — the read side of {@link revokeSessionsForMember}. */
+export async function countSessionsForMember(db: Database, memberId: string): Promise<number> {
+  const rows = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(authSessions)
+    .where(eq(authSessions.userId, memberId));
+  return rows[0]?.n ?? 0;
 }
 
 /**

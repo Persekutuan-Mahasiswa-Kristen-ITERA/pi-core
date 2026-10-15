@@ -13,9 +13,11 @@
  * around the callback, not here — Better Auth's job is the handshake and the session.
  */
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
-import type { Database } from "@pi-core/db";
+import { resolveSignIn, type Database } from "@pi-core/db";
 import * as schema from "@pi-core/db/schema";
+import { GENERIC_SIGN_IN_DENIAL } from "@pi-core/shared";
 import { betterAuth } from "better-auth";
+import { APIError } from "better-auth/api";
 import type { Env } from "./env";
 
 export type Auth = ReturnType<typeof createAuth>;
@@ -36,6 +38,39 @@ export interface AuthInstance {
 export interface AuthSessionLike {
   user: { id: string; email: string };
   session: { id: string };
+}
+
+/** The shape of the user object Better Auth hands to the `user.create.before` hook. */
+export interface NewMemberCandidate {
+  email?: unknown;
+  emailVerified?: unknown;
+}
+
+/**
+ * The invite-only guard behind `databaseHooks.user.create.before`.
+ *
+ * Exported separately from the config so it can be exercised directly against a real database
+ * (`apps/api/scripts/verify-signin-guard.ts`) instead of only through a live Google consent — a
+ * non-ITERA Google account is not something this project can create on its own.
+ *
+ * Throws `APIError(FORBIDDEN)` carrying {@link GENERIC_SIGN_IN_DENIAL} when refused. That is
+ * deliberate: `resolveSignIn` audits the refusal, and the client sees one generic message regardless
+ * of *why* it was refused (NFR-3).
+ */
+export function newMemberGuard<T extends NewMemberCandidate>(db: Database) {
+  return async (user: T): Promise<{ data: T }> => {
+    const email = typeof user.email === "string" ? user.email : null;
+    const resolution = await resolveSignIn(db, {
+      email,
+      emailVerified: user.emailVerified === true,
+    });
+
+    if (!resolution.decision.allowed) {
+      throw new APIError("FORBIDDEN", { message: GENERIC_SIGN_IN_DENIAL });
+    }
+
+    return { data: user };
+  };
 }
 
 /**
@@ -62,6 +97,26 @@ export function createAuth(db: Database, env: Env): AuthInstance {
     secret: env.BETTER_AUTH_SECRET,
 
     database: drizzleAdapter(db, { provider: "pg", schema: authSchema() }),
+
+    databaseHooks: {
+      user: {
+        create: {
+          /**
+           * Invite-only, enforced where it can actually be observed (FR-4, FR-7, NFR-3).
+           *
+           * Better Auth reaches this hook only when a sign-in found **no** member row for the address
+           * — precisely the case the org must refuse (a member row exists ⇒ it takes the linking
+           * path instead). `resolveSignIn` writes the audit row (precise reason, **domain only**,
+           * never the full address) and we answer with the single generic message, so the response
+           * cannot be used to enumerate who is a member.
+           *
+           * Returning `false` would abort silently and leave no trace; throwing is what both records
+           * the refusal and surfaces one generic error (FR-7 + NFR-3).
+           */
+          before: newMemberGuard(db),
+        },
+      },
+    },
 
     user: {
       modelName: "members",
