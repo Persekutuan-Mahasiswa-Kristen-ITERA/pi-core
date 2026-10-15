@@ -17,6 +17,6 @@
     "@pi-core/config": "workspace:*",
     "eslint": "^9.36.0",
     "typescript": "^5.9.2",
-    "vitest": "^3.2.4"
+    "vitest": "^5.0.4"
   }
 }
