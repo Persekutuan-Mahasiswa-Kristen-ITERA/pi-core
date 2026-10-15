@@ -83,8 +83,11 @@ Scope: **O** = organization-wide, **U** = only the holder's own unit subtree, **
 | `audit:read` | O | O | - | - | - | - | - | - |
 | `report:read` | reserved (Reports screen deferred) |
 
-\* U-scoped managers may only create/modify assignments whose position `rank` is **strictly greater** (more junior) than their own highest-ranking
-position in that subtree, and only inside their subtree. Test this explicitly.
+\* **Rank guard, `U` scope only.** A manager whose `assignment:manage` is **U**-scoped may only create/modify assignments whose position `rank` is
+**strictly greater** (more junior) than their own highest-ranking position in that subtree, and only inside that subtree. It does **not** apply at `O`
+scope. Because of **ADR-0002** every Kepala Departemen and Kepala Biro *also* holds `organization_admin` (scope `O`), so their effective
+`assignment:manage` is org-wide and **not** rank-limited — in practice the guard binds `sekretaris`. Test **both** the guarded and the org-admin
+behaviour explicitly (owner decision, 2026-10-15).
 
 Rules: deny by default. Permissions are checked server-side through one function `can(actor, permission, target?)` in `packages/shared`
 (pure, unit-tested). Users can never grant themselves permissions. The last `super_admin` cannot be removed. Every grant change is audited.
