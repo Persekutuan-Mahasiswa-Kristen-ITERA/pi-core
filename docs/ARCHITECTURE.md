@@ -3,6 +3,8 @@
 Status legend: **[Owner]** = decided by the owner · **[Proposed]** = architect's proposal, agent may refine via ADR ·
 **[Verify]** = must be checked against current official docs before relying on it.
 
+> **Companion:** the BMAD architecture spine — `_bmad-output/planning-artifacts/architecture/architecture-PMK-CORE-2026-10-15/ARCHITECTURE-SPINE.md` — holds the invariants (AD-1…AD-15) derived from this document. Keep the two in sync; this document is authoritative for the org model, roles and auth approach.
+
 ## 1. Product scope
 PI-CORE owns: member identity, organization structure, periods, assignments (who holds which position in which unit in which period),
 roles & permissions, authentication (Google), OIDC provider for other PMK apps, audit log.
@@ -112,7 +114,7 @@ Rules: deny by default. Permissions are checked server-side through one function
   Enforce **server-side** on the verified ID-token email. The Google `hd` parameter is only a UI hint and is NOT a security control. [Verify] Seed = ITERA domains only (**ADR-0005**).
 - **Invite-only**: after the Google callback, the email must match an existing `active` member. Unknown email gives a generic denial + audit entry.
   Link `google_sub` on first login and prefer `sub` matching afterwards.
-- Web: secure httpOnly cookie session. Mobile: system-browser OAuth with PKCE, tokens in `expo-secure-store`, short access token + rotating refresh token. [Verify library support]
+- Web: secure httpOnly cookie session. Mobile: system-browser OAuth with PKCE, tokens in `expo-secure-store`, short access token + rotating refresh token. **Library: Better Auth** — Google provider + `@better-auth/oauth-provider` (OIDC) + `@better-auth/expo`; verified 2026-10-15, see **ADR-0007**.
 - Bootstrap: the first `super_admin` is created by a one-off seed command using an env-provided email (never hardcoded), recorded in audit.
 
 ## 6. SSO / integrations [Owner: follow recommendation] [Proposed]
@@ -131,9 +133,9 @@ Cursor pagination. Rate limits on auth and write endpoints. `requestId` propagat
 - Worker `pi-core-web` (Next.js via OpenNext) with bindings: `HYPERDRIVE` to Supabase Postgres, `AVATARS` (R2), rate-limiting binding or KV, secrets via `wrangler secret`.
 - Environments: local (wrangler dev / next dev), **staging** (own Supabase project + own Hyperdrive), **production**.
 - Custom domain `core.pmkitera.web.id` — **deferred (ADR-0003)**: `pmkitera.web.id` is not on Cloudflare DNS. Staging is served from a `*.workers.dev` subdomain.
-- Workers **Free** is the ceiling (**ADR-0003**); if Next.js via OpenNext exceeds Free limits (bundle size / CPU), report and re-scope — do not upgrade without owner approval.
+- Workers **Free** is the ceiling (**ADR-0003**). Verified limits (2026-10-15): **10 ms CPU per request**, 100k requests/day, 128 MB memory, **3 MiB** compressed Worker, 50 subrequests, 6 concurrent outbound connections. ⚠️ 10 ms is below what auth + SSR typically cost — see **ADR-0008**; measure CPU and bundle in Phase 0 before committing.
 - CI: GitHub Actions runs typecheck/lint/test and deploys staging automatically. Production deploy and production migrations require explicit owner approval.
-- Supabase is used as plain Postgres. Lock down the Supabase Data API exposure for these tables; do not rely on Supabase Auth. Use the connection string type recommended for Hyperdrive. [Verify]
+- Supabase is used as plain Postgres. **Data API disabled**; do not rely on Supabase Auth. Hyperdrive uses the **direct** connection string (Hyperdrive pools); drivers `pg` (≥8.13.0) / `postgres` (≥3.4.4) + Drizzle (`drizzle-orm/node-postgres` ≥0.26.2), `nodejs_compat`. Verified 2026-10-15 — see **ADR-0009**.
 
 ## 9. Quality bar
 Unit tests for `can()` and period/assignment invariants. Integration tests per endpoint including **denied** cases. E2E for login -> dashboard -> assign member (web).
