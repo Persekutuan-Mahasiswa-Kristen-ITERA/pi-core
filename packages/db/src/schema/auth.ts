@@ -1,5 +1,6 @@
-import { boolean, pgTable, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { citext } from "./citext";
+import { members } from "./members";
 
 /**
  * `allowed_email_domains` — the server-side sign-in allowlist (`docs/ARCHITECTURE.md` §4, FR-3).
@@ -26,3 +27,79 @@ export const allowedEmailDomains = pgTable(
 
 export type AllowedEmailDomain = typeof allowedEmailDomains.$inferSelect;
 export type NewAllowedEmailDomain = typeof allowedEmailDomains.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Better Auth's own tables (ADR-0015)
+// ---------------------------------------------------------------------------
+
+/**
+ * Better Auth's `user` model is mapped onto **`members`**, so there is no `user` table here. These
+ * three are auth infrastructure, written only by Better Auth.
+ *
+ * Column names are `snake_case` like the rest of the schema; the **Drizzle property names match
+ * Better Auth's field names exactly** (`expiresAt`, `providerId`, …), which is what its drizzle
+ * adapter maps on. Field lists were read from `@better-auth/core@1.6.33`'s `db/get-tables.mjs`,
+ * not guessed.
+ */
+
+/** Better Auth `session`. */
+export const authSessions = pgTable(
+  "sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    token: text("token").notNull().unique(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+  },
+  (t) => [index("sessions_user_idx").on(t.userId), index("sessions_expires_idx").on(t.expiresAt)],
+);
+
+/** Better Auth `account` — one row per linked provider account (Google, later Apple). */
+export const authAccounts = pgTable(
+  "accounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
+    scope: text("scope"),
+    password: text("password"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("accounts_user_idx").on(t.userId),
+    uniqueIndex("accounts_provider_account_uq").on(t.providerId, t.accountId),
+  ],
+);
+
+/** Better Auth `verification` — short-lived tokens (state, OAuth state, email verification). */
+export const authVerifications = pgTable(
+  "verifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("verifications_identifier_idx").on(t.identifier)],
+);
+
+export type AuthSession = typeof authSessions.$inferSelect;
+export type AuthAccount = typeof authAccounts.$inferSelect;
+export type AuthVerification = typeof authVerifications.$inferSelect;

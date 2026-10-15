@@ -48,6 +48,15 @@ export const ROUTE_AUTHORIZATION: readonly RouteAuthorization[] = [
     reason:
       "Liveness probe. Returns only { ok, database, role, environment, latencyMs } — no member data — and is also hit by the keep-alive Cron Trigger (ADR-0014).",
   },
+  {
+    file: "routes/auth.ts",
+    method: "ALL",
+    path: "*",
+    mountedAt: "/api/auth",
+    public: true,
+    reason:
+      "Better Auth's own handler (ADR-0007/ADR-0015): this IS the sign-in attempt, so there is no session to authorize yet. Admission is still enforced — the allowlist (FR-3), invite-only (FR-4) and email_verified (NFR-1) checks run in resolveSignIn around the callback, and every refusal is audited (FR-7).",
+  },
 ];
 
 /** Every registration the coverage test expects to find, as `file METHOD path`. */

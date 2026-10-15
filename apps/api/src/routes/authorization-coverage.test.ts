@@ -23,8 +23,9 @@ const SRC = join(import.meta.dirname, "..");
  * not a silent miss.
  */
 const NON_ROUTE_CALLS: readonly string[] = [
-  // Hono context read inside the authorization middleware, not a route.
+  // Hono context reads inside middleware / handlers, not routes.
   "middleware/authorization.ts GET actor",
+  "routes/auth.ts GET auth",
 ];
 
 function sourceFiles(dir: string): string[] {
