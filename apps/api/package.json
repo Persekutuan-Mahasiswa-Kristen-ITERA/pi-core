@@ -15,6 +15,7 @@
   "dependencies": {
     "@pi-core/db": "workspace:*",
     "@pi-core/shared": "workspace:*",
+    "better-auth": "~1.6.33",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.9.10"
   },

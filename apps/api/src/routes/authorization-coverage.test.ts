@@ -13,15 +13,10 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
-import { ROUTE_AUTHORIZATION, findAuthorization, type HttpMethod } from "./registry";
+import { ROUTE_AUTHORIZATION, findAuthorization } from "./registry";
+import { ROUTER_RECEIVER, findRegistrationsInSource, type Registration } from "./scan";
 
 const SRC = join(import.meta.dirname, "..");
-
-/** `app.get("/x"`, `c.get("actor"`, `healthRoutes.post("/y"`. */
-const CALL = /\b([A-Za-z_$][\w$]*)\s*\.(get|post|put|patch|delete)\(\s*["'`]([^"'`]+)["'`]/g;
-
-/** Receivers that mean "this registers an HTTP route". */
-const ROUTER_RECEIVER = /^(app|.*Routes|.*Router)$/;
 
 /**
  * Calls that look like a route registration but are not. Kept explicit so a new one is a decision,
@@ -31,13 +26,6 @@ const NON_ROUTE_CALLS: readonly string[] = [
   // Hono context read inside the authorization middleware, not a route.
   "middleware/authorization.ts GET actor",
 ];
-
-interface Call {
-  file: string;
-  receiver: string;
-  method: HttpMethod;
-  path: string;
-}
 
 function sourceFiles(dir: string): string[] {
   const out: string[] = [];
@@ -49,26 +37,16 @@ function sourceFiles(dir: string): string[] {
   return out;
 }
 
-function findCalls(): Call[] {
-  const found: Call[] = [];
-  for (const file of sourceFiles(SRC)) {
-    const source = readFileSync(file, "utf8");
-    for (const match of source.matchAll(CALL)) {
-      found.push({
-        file: relative(SRC, file),
-        receiver: match[1]!,
-        method: match[2]!.toUpperCase() as HttpMethod,
-        path: match[3]!,
-      });
-    }
-  }
-  return found;
+function findCalls(): Registration[] {
+  return sourceFiles(SRC).flatMap((file) =>
+    findRegistrationsInSource(relative(SRC, file), readFileSync(file, "utf8")),
+  );
 }
 
 const calls = findCalls();
 const routes = calls.filter((c) => ROUTER_RECEIVER.test(c.receiver));
 const nonRoutes = calls.filter((c) => !ROUTER_RECEIVER.test(c.receiver));
-const key = (c: Call) => `${c.file} ${c.method} ${c.path}`;
+const key = (c: Registration) => `${c.file} ${c.method} ${c.path}`;
 
 describe("route authorization coverage (FR-25, SM-2)", () => {
   it("finds the routes the API actually registers", () => {

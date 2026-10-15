@@ -20,11 +20,15 @@
 			"0 */6 * * *"
 		]
 	},
+	"vars": {
+		"BETTER_AUTH_URL": "http://localhost:8787"
+	},
 	"env": {
 		"staging": {
 			"name": "pi-core-api-staging",
 			"vars": {
-				"ENVIRONMENT": "staging"
+				"ENVIRONMENT": "staging",
+				"BETTER_AUTH_URL": "https://pi-core-api-staging.pmkitera.workers.dev"
 			},
 			"hyperdrive": [
 				{

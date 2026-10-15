@@ -44,3 +44,5 @@ Thumbs.db
 # Personal (non-committed) BMAD overrides / install answers
 _bmad/config.user.toml
 _bmad/custom/*.user.toml
+
+client_secret_1000953137367-nguhtk1bc4pe27avfjbrhggcs11ut62b.apps.googleusercontent.com.json
