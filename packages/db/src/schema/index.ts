@@ -4,3 +4,4 @@ export * from "./org-units";
 export * from "./periods";
 export * from "./positions";
 export * from "./assignments";
+export * from "./rbac";

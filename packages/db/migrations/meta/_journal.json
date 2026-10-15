@@ -15,6 +15,13 @@
       "when": 1792051356290,
       "tag": "0001_periods_positions_assignments",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792071585765,
+      "tag": "0002_rbac",
+      "breakpoints": true
     }
   ]
 }
