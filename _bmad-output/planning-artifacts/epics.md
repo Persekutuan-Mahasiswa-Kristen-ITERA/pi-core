@@ -83,6 +83,9 @@ Security hardening, end-to-end tests, accessibility, observability and the relea
 Web and mobile reflect data changes live — members, assignments, periods, roles, integrations, settings and audit — through one hub, so nobody works on stale data. *(New requirement, ADR-0011. Delivered after Epic 4 (API) and alongside Epic 5 (Mobile).)*
 **FRs covered:** FR-55, FR-56, FR-57
 
+> **Plan impact — ADR-0013 (2026-10-15, owner-approved).** Staging measurements showed the Next.js/OpenNext server exceeds the Workers **Free** 10 ms CPU limit on every request (14–303 ms measured; 150+ requests still returned 200 only via the runtime's undocumented flexibility). The architecture is therefore **static-first + thin API Worker** (spine **AD-17**): `apps/web` becomes a **build-time static export** served from Cloudflare static assets (0 Worker CPU per page view), and a new **`apps/api`** — a thin **Hono** Worker — owns `/api/v1/*`, the `RealtimeHub` Durable Object, the OIDC endpoints and Hyperdrive DB access, all in one Worker deployment.
+> **Affected stories:** **1.2** — the Next.js scaffold stands, but its OpenNext/Workers deployment is superseded; a follow-up story converts `apps/web` to static export and adds `apps/api`. **Epic 4 (UI)** — pages are client-rendered over the API instead of SSR. **Epic 6 (OIDC)** and **Epic 8 (real-time)** — served from `apps/api`. Detailed story rewrites land when each epic starts; the rest of the backlog is unchanged.
+
 ## Epic 1: Foundation
 
 A working, deployable monorepo skeleton on Cloudflare staging with CI and verified commands.

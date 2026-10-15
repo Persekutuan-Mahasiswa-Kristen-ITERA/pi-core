@@ -109,6 +109,11 @@ None — this is the top-level spine. (`AGENTS.md` and `docs/SECURITY.md` are bi
 - **Prevents:** each screen polling or inventing its own live path; a push channel that leaks data beyond a client's scope.
 - **Rule:** A single **`RealtimeHub` Durable Object** (SQLite-backed, WebSocket **Hibernation API**) fans out domain events. Every mutation publishes a minimal event (`{ topic, entity, id, action, at }`) to the hub. The channel is a **notification** channel: events carry ids/action only and clients re-fetch through the authorized `/api/v1` API, so scope is always enforced by `can()` in the query; subscriptions are authorized at connect time. **SSE** is the fallback transport. Durable Objects run on Workers Free (SQLite-backed classes only) and DO requests count toward the 100k/day limit (ADR-0011).
 
+### AD-17 — Rendering is static; only the API runs on the Worker
+- **Binds:** NFR-1 (Workers Free viability); FR-1…FR-54; ADR-0013
+- **Prevents:** page rendering burning the Workers Free CPU budget (measured 14–303 ms vs the 10 ms limit); a second, divergent data path for web vs mobile.
+- **Rule:** `apps/web` is a **build-time static export** (`output: "export"`) served from Cloudflare **static assets**, so page requests never invoke the Worker (0 CPU). All dynamic behaviour lives in a **thin Hono API Worker** (`apps/api`): `/api/v1/*`, the `RealtimeHub` Durable Object, the OIDC endpoints, and Hyperdrive DB access. Both ship in **one Worker deployment** — the `assets` binding serves the UI and `run_worker_first` is scoped to `/api/*`. Next.js SSR/RSC and OpenNext rendering are **not** used; the web UI is a client-side app that fetches through the same API the mobile app uses.
+
 ### Dependency direction
 
 ```mermaid
@@ -224,10 +229,10 @@ erDiagram
 | Integrations & OIDC | Better Auth `oauth-provider` | AD-6, AD-14 |
 | Settings / auth config | `apps/web` | AD-2, AD-9 |
 | Audit log | `packages/db` | AD-9, AD-5 |
-| Admin website | `apps/web` | AD-11, `docs/DESIGN.md` |
+| Admin website | `apps/web` (static export → static assets) | AD-11, AD-17, `docs/DESIGN.md` |
 | Mobile app | `apps/mobile` | AD-7, AD-11 |
-| HTTP API | `apps/web/api/v1` | AD-4, AD-5 |
-| Real-time updates | `RealtimeHub` Durable Object + web/mobile subscribers | AD-16, AD-11 |
+| HTTP API | `apps/api` (thin Hono Worker, `/api/v1`) | AD-4, AD-5, AD-17 |
+| Real-time updates | `RealtimeHub` Durable Object in `apps/api` + web/mobile subscribers | AD-16, AD-17, AD-11 |
 
 ## Deferred
 

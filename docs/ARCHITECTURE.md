@@ -130,10 +130,10 @@ Rules: deny by default. Permissions are checked server-side through one function
 Cursor pagination. Rate limits on auth and write endpoints. `requestId` propagated to logs and audit.
 
 ## 8. Cloudflare topology [Proposed] [Verify all]
-- Worker `pi-core-web` (Next.js via OpenNext) with bindings: `HYPERDRIVE` to Supabase Postgres, `AVATARS` (R2), rate-limiting binding or KV, secrets via `wrangler secret`.
+- **One Worker deployment** (ADR-0013, spine **AD-17**): **static-first** — `apps/web` is built to a **static export** and served from Cloudflare **static assets** (0 CPU per page view); a thin **Hono** Worker (`apps/api`) serves `/api/v1/*`, hosts the `RealtimeHub` Durable Object and the OIDC endpoints, and reaches Postgres through the `HYPERDRIVE` binding. Other bindings: `AVATARS` (R2), rate-limiting binding or KV; secrets via `wrangler secret`.
 - Environments: local (wrangler dev / next dev), **staging** (own Supabase project + own Hyperdrive), **production**.
 - Custom domain `core.pmkitera.web.id` — **deferred (ADR-0003)**: `pmkitera.web.id` is not on Cloudflare DNS. Staging is served from a `*.workers.dev` subdomain.
-- Workers **Free** is the ceiling (**ADR-0003**). Verified limits (2026-10-15): **10 ms CPU per request**, 100k requests/day, 128 MB memory, **3 MiB** compressed Worker, 50 subrequests, 6 concurrent outbound connections. ⚠️ 10 ms is below what auth + SSR typically cost — see **ADR-0008**; measure CPU and bundle in Phase 0 before committing.
+- Workers **Free** is the ceiling (**ADR-0003**). Verified limits (2026-10-15): **10 ms CPU per request**, 100k requests/day, 128 MB memory, **3 MiB** compressed Worker, 50 subrequests, 6 concurrent outbound connections. **Measured 2026-10-15 (story 1.5):** Next.js/OpenNext on the Worker costs **14–303 ms CPU per request** — above the limit on every request (still returning 200 only via the runtime's undocumented flexibility). This is why rendering was moved off the Worker → **ADR-0013** (static-first + thin Hono API, spine AD-17). Bundle: **822.30 KiB gzip** (27% of the 3 MiB ceiling).
 - CI: GitHub Actions runs typecheck/lint/test and deploys staging automatically. Production deploy and production migrations require explicit owner approval.
 - Supabase is used as plain Postgres. **Data API disabled**; do not rely on Supabase Auth. Hyperdrive uses the **direct** connection string (Hyperdrive pools); drivers `pg` (≥8.13.0) / `postgres` (≥3.4.4) + Drizzle (`drizzle-orm/node-postgres` ≥0.26.2), `nodejs_compat`. Verified 2026-10-15 — see **ADR-0009**.
 
