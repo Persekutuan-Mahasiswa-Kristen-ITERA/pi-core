@@ -10,5 +10,16 @@
   },
   "observability": {
     "enabled": true
+  },
+  "env": {
+    "staging": {
+      "name": "pi-core-web-staging",
+      "vars": {
+        "ENVIRONMENT": "staging"
+      },
+      "observability": {
+        "enabled": true
+      }
+    }
   }
 }

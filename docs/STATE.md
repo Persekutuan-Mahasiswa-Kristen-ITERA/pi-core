@@ -5,9 +5,9 @@ Single source of truth for "where are we". Keep it short and factual. Never writ
 ## Current
 - **Mode:** BMAD   <!-- BMAD | PHASES (fallback) -->
 - **BMAD version / install status:** installed — **6.12.3** (core + bmm, built-in) + bmb v2.2.2, cis v0.3.2, tea v1.27.2 (external); installed 2026-10-14; `ides: [hermes, pi]`; output `_bmad-output/`
-- **BMAD stage / current step:** Stage 1 (planning) **complete**; **Stage 2 (delivery) in progress** — Epic 1 stories 1-1…1-3 done, story 1-4 blocked on Cloudflare auth (see Blockers)
-- **Current phase/epic:** Epic 1 (Foundation) — **in progress** (stories 1-1, 1-2, 1-3 done)
-- **BMAD sprint/story status file path:** `_bmad-output/implementation-artifacts/sprint-status.yaml` (8 epics / 46 stories; `epic-1` in-progress, stories 1-1…1-3 done)
+- **BMAD stage / current step:** Stage 1 (planning) **complete**; **Stage 2 (delivery) in progress** — Epic 1 stories 1-1…1-4 done, story 1-5 next
+- **Current phase/epic:** Epic 1 (Foundation) — **in progress** (stories 1-1…1-4 done)
+- **BMAD sprint/story status file path:** `_bmad-output/implementation-artifacts/sprint-status.yaml` (8 epics / 46 stories; `epic-1` in-progress, stories 1-1…1-4 done)
 - **Status:** in progress   <!-- not started | in progress | blocked | awaiting owner review | done -->
 - **Last updated:** 2026-10-15, by Hermes (implementation agent)
 
@@ -27,19 +27,20 @@ Single source of truth for "where are we". Keep it short and factual. Never writ
 - **Stage 2 story 1.1 — monorepo scaffold (done).** pnpm workspaces + Turborepo + TypeScript strict; `packages/config` (base tsconfig, ESLint flat config, Prettier). Verified: `pnpm install` (112 pkgs), `pnpm -r typecheck` ✓, `pnpm -r lint` ✓, `pnpm -r test` ✓, `pnpm typecheck` (turbo) ✓.
 - **Stage 2 story 1.2 — Next.js + OpenNext + Wrangler (done).** `apps/web`: Next.js 16.4.1 (App Router, Turbopack) + `@opennextjs/cloudflare` 1.20.11 + `wrangler.jsonc` (`nodejs_compat`, `ASSETS` binding, observability). Verified: `opennextjs-cloudflare build` → **`.open-next/worker.js`**; `wrangler deploy --dry-run` → **Total 4043.67 KiB / gzip 841.33 KiB** (well under the 3 MiB Free limit); `typecheck` ✓ and `lint` ✓ (workspace-wide). Home page is static-first (ADR-0010).
 - **Stage 2 story 1.3 — CI pipeline (done).** Repo dibuat di organisasi GitHub **public** `Persekutuan-Mahasiswa-Kristen-ITERA/pi-core` (plan org Free → branch protection hanya tersedia untuk repo public). `.github/workflows/ci.yml` (pnpm install --frozen-lockfile → typecheck / lint / test / `pnpm audit --audit-level high`) + `.github/dependabot.yml`. Terverifikasi: run **CI = success** (semua step hijau); branch protection `main` = required check `typecheck · lint · test · audit`, `strict`, force-push & delete diblokir; Dependabot aktif (sudah membuka PR, lalu ditutup karena versi action sudah di-bump manual). Override `glob ≥10.5.0` (GHSA-5j98-mcp5-4vw2) → `pnpm audit` bersih.
+- **Stage 2 story 1.4 — Cloudflare staging deploy (done).** Worker **`pi-core-web-staging`** live di **https://pi-core-web-staging.pmkitera.workers.dev** (HTTP 200, `<title>PI-CORE</title>`; static asset 200). Akun Cloudflare `biroitpmkitera@gmail.com`; subdomain `workers.dev` akun = **`pmkitera`** (didaftarkan saat deploy). `wrangler.jsonc` punya blok `env.staging` (name + var `ENVIRONMENT=staging`); `.env.example` di-commit; `wrangler secret list --env staging` → `[]` (hello deploy belum butuh rahasia; mekanisme siap). Scan bundle: tidak ada rahasia. Upload 3983.07 KiB / gzip **822.30 KiB**; startup 18 ms. **Fix penting:** Next dipin ke **16.3.8** (ADR-0012).
 - **Git repo initialized** (`git init -b main`); commits made.
 
 ## Environment (verified 2026-10-15)
 Node v26.7.0 · pnpm 10.20.0 · npm 11.19.0 · git 2.43.0 · wrangler 4.151.0 (via `npx`) · uv 0.12.2 · Hermes Agent v0.21.6+667 · BMAD 6.12.3. Figma MCP: server enabled + OAuth tokens present (`~/.hermes/mcp-tokens/figma.*`); project skills loaded (`[project]`).
 
 ## In progress / next concrete step
-**Stage 2 — delivery loop** (Epic 1: Foundation, in progress). Next story: **`1-4-cloudflare-staging-hello-deploy`** — deploy the staging Worker to `*.workers.dev` (secrets via `wrangler secret`; `.env.example` committed). **Blocked until the owner authenticates wrangler** (see Blockers). Then 1-5 (baseline CPU/bundle measurements → recorded in STATE). Stop at the **Epic 1 boundary** for owner review. Production deploy and paid resources stay approval-gated.
+**Stage 2 — delivery loop** (Epic 1: Foundation, in progress). Next story: **`1-5-baseline-measurements-verified-commands`** — measure the Workers Free budget (CPU per request from `wrangler tail`, bundle size) and record the real commands in STATE. Then **stop at the Epic 1 boundary** for owner review. Production deploy and paid resources stay approval-gated.
 
 ## Blockers needing the owner (collect here, ask in one batch)
 1. ~~Figma MCP not authorised~~ — **resolved 2026-10-15**: owner completed `hermes mcp login figma`; `hermes mcp test figma` → **✓ Connected, 42 tools**; the session registered **46 `mcp__figma__*` tools** (`logs/agent.log`). Step 4 (UX) is now done.
 2. ~~Confirm ADR-0002 interpretation~~ — **confirmed by the owner 2026-10-15**: all Kepala Departemen + Kepala Biro hold `organization_admin` (O-scope, org-wide).
 3. ~~Epics & stories review (gate)~~ — **accepted by the owner 2026-10-15**, then extended with the real-time requirement; plan is now **8 epics / 46 stories** (`epics.md`). Architecture **approved 2026-10-15** (ADR-0010 = Workers Free CPU mitigations).
-4. **Authenticate `wrangler` with Cloudflare — blocks story 1.4.** `wrangler whoami` reports *not authenticated*. The owner must run, in their own terminal: `cd ~/Documents/PMK-CORE && pnpm --filter @pi-core/web exec wrangler login` (opens a browser to authorise). Never paste a token/password in chat.
+4. ~~Authenticate `wrangler` with Cloudflare~~ — **resolved 2026-10-15**: owner ran `wrangler login` (`biroitpmkitera@gmail.com`). Account-level `workers.dev` subdomain = **`pmkitera`** (registered during the first deploy).
 
 ## Decisions log (links to ADRs)
 - ADR-0001 — Adopt BMAD 6.12.3 → `docs/decisions/0001-adopt-bmad.md`
@@ -53,6 +54,7 @@ Node v26.7.0 · pnpm 10.20.0 · npm 11.19.0 · git 2.43.0 · wrangler 4.151.0 (v
 - ADR-0009 — Data access (Hyperdrive direct + Data API off + RLS) → `docs/decisions/0009-data-access-hyperdrive-supabase.md`
 - ADR-0010 — Workers Free CPU mitigations → `docs/decisions/0010-workers-free-cpu-mitigations.md`
 - ADR-0011 — Real-time updates → `docs/decisions/0011-realtime-updates.md`
+- ADR-0012 — Pin Next.js 16.3.8 (OpenNext/Workers compat) → `docs/decisions/0012-pin-nextjs-16-3-8.md`
 
 ## Owner approvals received
 - 2026-10-15: enabled the Figma MCP server and trusted the repo for project skills.
@@ -62,6 +64,7 @@ Node v26.7.0 · pnpm 10.20.0 · npm 11.19.0 · git 2.43.0 · wrangler 4.151.0 (v
 - 2026-10-15: accepted the plan and **added the real-time requirement** (→ ADR-0011, Epic 8).
 
 ## Session notes (newest first)
+- **2026-10-15 (Hermes), session 13:** Story **1.4 (staging deploy)** done. Worker `pi-core-web-staging` live di https://pi-core-web-staging.pmkitera.workers.dev (**200 OK**). Ditemukan bug adapter↔Next 16.4 (`Unexpected loadManifest(preview-props.json)` → Cloudflare error 1101) dan diperbaiki dengan mem-pin Next ke **16.3.8** → **ADR-0012**. Sprint: `1-4: done`. Next: story 1.5 (baseline CPU/bundle measurements).
 - **2026-10-15 (Hermes), session 12:** Story **1.3 (CI pipeline)** implemented and verified. Repo public dibuat di organisasi `Persekutuan-Mahasiswa-Kristen-ITERA/pi-core` (owner memilih public karena plan org Free — branch protection hanya gratis untuk repo public). CI GitHub Actions hijau; branch protection + required check aktif; Dependabot aktif. `pnpm audit` bersih setelah override `glob ≥10.5.0`. **Blocker baru:** `wrangler` belum login → story 1.4 menunggu autentikasi owner. Sprint: `1-3: done`. Next: story 1.4.
 - **2026-10-15 (Hermes), session 11:** Story **1.2 (Next.js + OpenNext + Wrangler)** implemented and verified: `opennextjs-cloudflare build` produces `.open-next/worker.js`; `wrangler deploy --dry-run` reports **gzip 841.33 KiB** (under 3 MiB Free); typecheck + lint pass workspace-wide. Fixed: pnpm 10 build-script allowlist (`onlyBuiltDependencies` in `pnpm-workspace.yaml`), Turbopack tsconfig `extends` (relative path), and `@pi-core/config` as an explicit dependency. Sprint: `1-2: done`. Next: story 1.3 (CI).
 - **2026-10-15 (Hermes), session 10:** Stage 2 started. Story **1.1 (monorepo scaffold)** implemented and verified: pnpm workspaces + Turborepo + TS strict + `packages/config` (tsconfig/eslint/prettier); `pnpm install`, `pnpm -r typecheck`, `pnpm -r lint`, `pnpm -r test` all pass. Sprint status: `epic-1: in-progress`, `1-1: done`. Next: story 1.2.
