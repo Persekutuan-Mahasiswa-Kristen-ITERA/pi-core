@@ -104,6 +104,11 @@ None — this is the top-level spine. (`AGENTS.md` and `docs/SECURITY.md` are bi
 - **Prevents:** sensitive fields leaking to unauthorized actors or into logs.
 - **Rule:** NIM/phone/email are returned only to holders of `member:read_sensitive`; redacted in logs and audit before/after; members are soft-deleted; an anonymization path exists.
 
+### AD-16 — Real-time updates flow through one hub
+- **Binds:** FR-55, FR-56, FR-57; all mutations
+- **Prevents:** each screen polling or inventing its own live path; a push channel that leaks data beyond a client's scope.
+- **Rule:** A single **`RealtimeHub` Durable Object** (SQLite-backed, WebSocket **Hibernation API**) fans out domain events. Every mutation publishes a minimal event (`{ topic, entity, id, action, at }`) to the hub. The channel is a **notification** channel: events carry ids/action only and clients re-fetch through the authorized `/api/v1` API, so scope is always enforced by `can()` in the query; subscriptions are authorized at connect time. **SSE** is the fallback transport. Durable Objects run on Workers Free (SQLite-backed classes only) and DO requests count toward the 100k/day limit (ADR-0011).
+
 ### Dependency direction
 
 ```mermaid
@@ -145,6 +150,7 @@ flowchart TD
 | Cloudflare Workers | Free plan | 10 ms CPU/req · 100k req/day · 128 MB · 50 subreq |
 | Cloudflare Hyperdrive | — | included on all plans; Supabase **direct** connection |
 | Cloudflare R2 | — | private bucket; presigned URLs (≤7 days) |
+| Cloudflare Durable Objects | Free (SQLite-backed) | real-time hub; WebSocket Hibernation = zero idle cost (ADR-0011) |
 | PostgreSQL (Supabase) | — | Data API disabled; RLS on all tables |
 | Drizzle ORM + drizzle-kit | ≥ 0.26.2 (`drizzle-orm/node-postgres`) | driver `pg` ≥ 8.13.0 |
 | Better Auth | **1.6.x** (latest stable) | Google provider; Expo plugin |
@@ -221,6 +227,7 @@ erDiagram
 | Admin website | `apps/web` | AD-11, `docs/DESIGN.md` |
 | Mobile app | `apps/mobile` | AD-7, AD-11 |
 | HTTP API | `apps/web/api/v1` | AD-4, AD-5 |
+| Real-time updates | `RealtimeHub` Durable Object + web/mobile subscribers | AD-16, AD-11 |
 
 ## Deferred
 

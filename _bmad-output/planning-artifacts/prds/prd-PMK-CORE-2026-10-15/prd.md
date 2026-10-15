@@ -470,6 +470,29 @@ Strict CORS allowlist (no wildcard with credentials) and CSRF protection for coo
 **Consequences (testable):**
 - Cross-origin credentialed requests from non-allowlisted origins are refused.
 
+### 4.13 Real-time Updates
+
+**Description.** The app and website reflect data changes **live** — when one user mutates data, other authorized clients see it without a manual refresh. Delivered via a single `RealtimeHub` Durable Object (WebSocket Hibernation; SSE fallback); the channel is a *notification* channel, so scope is always enforced by `can()` in the query (ADR-0011).
+
+#### FR-55: Real-time event channel
+An authorized client can subscribe to a real-time channel and receive notifications of changes it is authorized to see.
+**Consequences (testable):**
+- Every mutation publishes a minimal event (`topic`, `entity`, `id`, `action`, `at`) to the `RealtimeHub` Durable Object.
+- The channel carries ids/action only; clients re-fetch through `/api/v1`, so a client never receives data outside its scope (O/U/S).
+- Idle WebSocket connections use the Hibernation API (no duration cost); SSE is the fallback transport.
+
+#### FR-56: Live updates on the admin website
+A pengurus sees changes made by others without a manual refresh.
+**Consequences (testable):**
+- A change to a member, assignment, period, role, integration or setting within the viewer's scope appears within the latency target (NFR-21).
+- The audit view updates live for holders of `audit:read`.
+
+#### FR-57: Live updates on mobile
+The mobile app reflects the same changes live.
+**Consequences (testable):**
+- The Expo app subscribes over the same channel and updates the affected screens.
+- Losing connectivity shows the offline state and resyncs on reconnect (FR-49).
+
 **Cross-cutting NFRs:** see §8.
 
 ## 5. Non-Goals (Explicit)
@@ -495,6 +518,7 @@ Strict CORS allowlist (no wildcard with credentials) and CSRF protection for coo
 - Settings & authentication configuration: allowed domains, org profile.
 - Audit log: write on every mutation, read for admins.
 - Admin website (desktop) + native mobile app (Android) + shared HTTP API.
+- **Real-time updates** (web + mobile) via a Durable Object hub — members, assignments, periods, roles, integrations, settings and audit (ADR-0011).
 
 ### 6.2 Out of Scope for MVP
 
@@ -551,6 +575,7 @@ Strict CORS allowlist (no wildcard with credentials) and CSRF protection for coo
 
 **Observability:**
 - NFR-20: Structured logs with `requestId` propagated to logs and audit.
+- NFR-21: **Real-time** — a mutation becomes visible to other authorized clients within ~2 s; the push channel carries no data beyond the subscriber's scope; idle connections cost nothing (WebSocket hibernation); Durable Object requests stay within the Workers Free daily limit (ADR-0011).
 
 ## 9. Constraints and Guardrails
 

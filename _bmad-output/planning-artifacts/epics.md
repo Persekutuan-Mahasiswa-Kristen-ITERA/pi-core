@@ -47,7 +47,7 @@ UX-DR1: Implement the **exact** token set once (colors, Manrope/Poppins/Inter, r
 
 ### FR Coverage Map
 
-FR-1→E3 · FR-2→E3 · FR-3→E3 · FR-4→E3 · FR-5→E3 · FR-6→E3 · FR-7→E3 · FR-8→E4 · FR-9→E4 · FR-10→E4 · FR-11→E4 · FR-12→E4 · FR-13→E4 · FR-14→E4 · FR-15→E2 · FR-16→E2 · FR-17→E2 · FR-18→E2 · FR-19→E4 · FR-20→E4 · FR-21→E4 · FR-22→E4 · FR-23→E2 · FR-24→E2 · FR-25→E2 · FR-26→E2 · FR-27→E2 · FR-28→E2 · FR-29→E4 · FR-30→E4 · FR-31→E2 · FR-32→E4 · FR-33→E4 · FR-34→E6 · FR-35→E6 · FR-36→E6 · FR-37→E6 · FR-38→E6 · FR-39→E6 · FR-40→E4 · FR-41→E4 · FR-42→E4 · FR-43→E2 · FR-44→E2 · FR-45→E4 · FR-46→E4 · FR-47→E4 · FR-48→E5 · FR-49→E5 · FR-50→E4 · FR-51→E4 · FR-52→E4 · FR-53→E4 · FR-54→E4
+FR-1→E3 · FR-2→E3 · FR-3→E3 · FR-4→E3 · FR-5→E3 · FR-6→E3 · FR-7→E3 · FR-8→E4 · FR-9→E4 · FR-10→E4 · FR-11→E4 · FR-12→E4 · FR-13→E4 · FR-14→E4 · FR-15→E2 · FR-16→E2 · FR-17→E2 · FR-18→E2 · FR-19→E4 · FR-20→E4 · FR-21→E4 · FR-22→E4 · FR-23→E2 · FR-24→E2 · FR-25→E2 · FR-26→E2 · FR-27→E2 · FR-28→E2 · FR-29→E4 · FR-30→E4 · FR-31→E2 · FR-32→E4 · FR-33→E4 · FR-34→E6 · FR-35→E6 · FR-36→E6 · FR-37→E6 · FR-38→E6 · FR-39→E6 · FR-40→E4 · FR-41→E4 · FR-42→E4 · FR-43→E2 · FR-44→E2 · FR-45→E4 · FR-46→E4 · FR-47→E4 · FR-48→E5 · FR-49→E5 · FR-50→E4 · FR-51→E4 · FR-52→E4 · FR-53→E4 · FR-54→E4 · FR-55→E8 · FR-56→E8 · FR-57→E8
 
 ## Epic List
 
@@ -78,6 +78,10 @@ PI-CORE as an OIDC provider and the Integrations screen — so PI-NEXUS and the 
 ### Epic 7: Hardening & Release
 Security hardening, end-to-end tests, accessibility, observability and the release runbook — so the system can be trusted in production.
 **FRs covered:** (cross-cutting NFRs; e2e/quality bar)
+
+### Epic 8: Real-time Updates
+Web and mobile reflect data changes live — members, assignments, periods, roles, integrations, settings and audit — through one hub, so nobody works on stale data. *(New requirement, ADR-0011. Delivered after Epic 4 (API) and alongside Epic 5 (Mobile).)*
+**FRs covered:** FR-55, FR-56, FR-57
 
 ## Epic 1: Foundation
 
@@ -425,3 +429,39 @@ I want a documented release (prod deploy, migrations) and Android build,
 So that we can ship safely.
 **Acceptance Criteria:**
 **Given** owner approval, **When** we release, **Then** production deploy and migrations run per the runbook; the Android build is produced; iOS stays dev-only (ADR-0004). **Production deploy requires explicit owner approval.**
+
+## Epic 8: Real-time Updates
+
+Web and mobile reflect data changes live through one hub.
+
+### Story 8.1: Real-time hub + event publishing
+As the implementation agent,
+I want a `RealtimeHub` Durable Object (WebSocket Hibernation) that every mutation publishes to,
+So that clients can be notified of changes live.
+**Acceptance Criteria:**
+**Given** a mutation, **When** it commits, **Then** an event `{ topic, entity, id, action, at }` is published to the hub and the `audit_logs` row is written (FR-55, AD-16).
+**Given** an idle WebSocket connection, **When** nothing happens, **Then** it uses the Hibernation API and accrues no duration cost; SSE is available as a fallback (ADR-0011).
+**And** the DO uses a `new_sqlite_classes` migration (Free-plan requirement) and DO requests are counted against the Workers Free daily limit.
+
+### Story 8.2: Admin website live updates
+As a pengurus,
+I want the website to update itself when others change data,
+So that I never work on stale data.
+**Acceptance Criteria:**
+**Given** two logged-in users, **When** one changes a member/assignment/period/role/integration/setting within the other's scope, **Then** the other's view updates within ~2 s (FR-56, NFR-21).
+**And** the audit view updates live for `audit:read` holders.
+
+### Story 8.3: Mobile live updates
+As an anggota/pengurus,
+I want the mobile app to update live,
+So that my phone shows the same state as the website.
+**Acceptance Criteria:**
+**Given** the Expo app, **When** it subscribes over the channel, **Then** affected screens update live; losing connectivity shows the offline state and resyncs on reconnect (FR-57, FR-49).
+
+### Story 8.4: Scope-safe fan-out + real-time tests
+As the org,
+I want the real-time channel to never leak data beyond a client's scope,
+So that live updates cannot bypass authorization.
+**Acceptance Criteria:**
+**Given** a U-scoped client, **When** an event for another subtree occurs, **Then** the client cannot obtain that data (the channel carries ids only and the re-fetch is scope-filtered) — a test asserts it (AD-16, NFR-21).
+**And** subscriptions are authorized at connect time.
