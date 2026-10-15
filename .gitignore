@@ -45,4 +45,7 @@ Thumbs.db
 _bmad/config.user.toml
 _bmad/custom/*.user.toml
 
-client_secret_1000953137367-nguhtk1bc4pe27avfjbrhggcs11ut62b.apps.googleusercontent.com.json
+# Google Cloud "Download JSON" OAuth client files. The file contains the client SECRET in plain
+# text, so it must never be committed. Prefer deleting it after copying the values into the secret
+# store; this pattern is the safety net, not the plan.
+client_secret_*.json
