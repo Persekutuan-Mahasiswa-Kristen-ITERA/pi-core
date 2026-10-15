@@ -82,7 +82,7 @@ None — this is the top-level spine. (`AGENTS.md` and `docs/SECURITY.md` are bi
 ### AD-11 — Fit the Workers **Free** envelope, and watch it
 - **Binds:** all; NFR-17
 - **Prevents:** shipping a design that silently 1102s (CPU) or 1027s (daily requests) on the free plan.
-- **Rule:** Workers **Free** is the ceiling (no paid plan). Runtime = Next.js **Node.js** runtime with `nodejs_compat`. Budget: **10 ms CPU/request**, 128 MB memory, **3 MiB** compressed Worker, 100k requests/day, 50 subrequests/request, 6 concurrent outbound connections. Keep route handlers thin (no heavy SSR/serialization on hot paths); measure CPU and bundle in Phase 0 and report — do **not** upgrade without owner approval. *Known risk: the 10 ms CPU budget is below what auth + SSR typically cost (Cloudflare: "10–20 ms"); see ADR-0008.*
+- **Rule:** Workers **Free** is the ceiling (no paid plan). Runtime = Next.js **Node.js** runtime with `nodejs_compat`. Budget: **10 ms CPU/request**, 128 MB memory, **3 MiB** compressed Worker, 100k requests/day, 50 subrequests/request, 6 concurrent outbound connections. Keep route handlers thin (no heavy SSR/serialization on hot paths); measure CPU and bundle in Phase 0 and report — do **not** upgrade without owner approval. *Known risk: the 10 ms CPU budget is below what auth + SSR typically cost (Cloudflare: "10–20 ms"); see ADR-0008.* Mitigation order (**ADR-0010**): (1) **static-first UI** — navigation served from static assets without invoking the Worker — plus thin API handlers; (2) if still over budget, **split the API into a lean Hono Worker** (Service bindings); (3) only then seek paid-plan approval.
 
 ### AD-12 — Secrets never enter the repo, the bundle, or logs
 - **Binds:** all

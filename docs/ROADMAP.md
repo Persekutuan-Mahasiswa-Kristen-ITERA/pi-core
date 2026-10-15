@@ -4,7 +4,7 @@
 
 Update the Status column when a phase completes (with date and PR/commit). Each phase has a prompt in `docs/phases/`.
 
-> **BMAD Stage 1 (planning) in progress** — since 2026-10-15: Stage 0 verified (BMAD 6.12.3); steps 1–5 done (project-context, brief, **PRD approved**, UX, **architecture spine at review gate**). Next: epics & stories (step 6) → readiness → sprint planning. No phase is `done` yet; the table below stays `not started` until a phase's epics/stories are delivered.
+> **BMAD Stage 1 (planning) in progress** — since 2026-10-15: Stage 0 verified (BMAD 6.12.3); steps 1–6 done (project-context, brief, **PRD approved**, UX, **architecture approved**, **epics & stories at review gate**). Next: readiness check → sprint planning. No phase is `done` yet; the table below stays `not started` until a phase's epics/stories are delivered.
 
 | Phase | Goal | Prompt | Status |
 |---|---|---|---|
