@@ -174,6 +174,42 @@ export const ROUTE_AUTHORIZATION: readonly RouteAuthorization[] = [
     reason:
       "Activate a period (FR-20, FR-21). Guarded by period:activate, which is a separate permission from period:manage on purpose. Deactivate-then-activate inside ONE transaction: the partial unique index permits only one active row, so the other order would violate it mid-transaction, and doing the two statements separately would leave a window with no active period during which every scoped query silently returns nothing. One audit row for the whole event, because what matters is that access moved and between which periods.",
   },
+  {
+    file: "routes/org-units.ts",
+    method: "GET",
+    path: "/",
+    mountedAt: "/api/v1/org-units",
+    permission: "orgunit:read",
+    reason:
+      "Read the organization tree (FR-15). O-scoped by design: the org chart is available to every authenticated member, because it is structure rather than personal data. Inactive units are excluded unless asked for explicitly.",
+  },
+  {
+    file: "routes/org-units.ts",
+    method: "POST",
+    path: "/",
+    mountedAt: "/api/v1/org-units",
+    permission: "orgunit:manage",
+    reason:
+      "Create a unit (FR-16). Guarded by orgunit:manage; the slug is constrained to lowercase-with-hyphens because it appears in the materialised path and is compared; the parent's path is read to compute the new unit's path and depth (FR-18). A duplicate slug under the same parent is a conflict, not a 500. Audited (FR-43).",
+  },
+  {
+    file: "routes/org-units.ts",
+    method: "PATCH",
+    path: "/:id",
+    mountedAt: "/api/v1/org-units",
+    permission: "orgunit:manage",
+    reason:
+      "Rename, reorder or move a unit (FR-16). Guarded by orgunit:manage. A move rewrites the whole subtree's path and depth in ONE statement, because doing it row by row would leave a window where half the subtree has the new path and half the old — silently changing who can see what. Moving a unit under itself or its own descendant is refused explicitly, since a self-referential path chain would make every subtree check match the wrong set. Changing `type` while positions are assigned is refused by the composite FK (FR-30) and mapped to a conflict. Audited (FR-43).",
+  },
+  {
+    file: "routes/org-units.ts",
+    method: "POST",
+    path: "/:id/deactivate",
+    mountedAt: "/api/v1/org-units",
+    permission: "orgunit:manage",
+    reason:
+      "Soft-delete a unit (FR-16) — the only removal offered, because units referenced by assignments must never be hard-deleted. Refused while it still has active children, which would otherwise leave them reachable while their scope path points at a unit no longer part of the tree. Assignments are NOT a reason to refuse: that is exactly the case FR-16 says must be soft-deleted, so the count is recorded instead. Audited (FR-43).",
+  },
 ];
 
 /** Every registration the coverage test expects to find, as `file METHOD path`. */

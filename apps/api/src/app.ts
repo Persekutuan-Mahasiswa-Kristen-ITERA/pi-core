@@ -9,6 +9,7 @@ import { authRoutes } from "./routes/auth";
 import { healthRoutes } from "./routes/health";
 import { memberRoutes } from "./routes/members";
 import { mobileAuthRoutes } from "./routes/mobile-auth";
+import { orgUnitRoutes } from "./routes/org-units";
 import { periodRoutes } from "./routes/periods";
 import { signInPageRoutes } from "./routes/sign-in-page";
 
@@ -70,6 +71,9 @@ app.route("/api/v1/members", memberRoutes);
 
 // Periods (story 4.6). Activation is its own endpoint because it is its own permission.
 app.route("/api/v1/periods", periodRoutes);
+
+// Organization units (story 4.5). Subtree checks ride on the materialised path (FR-18).
+app.route("/api/v1/org-units", orgUnitRoutes);
 
 // The uniform envelope applies to the two responses Hono produces without a route (FR-51).
 app.notFound((c) => c.json(errorBody(c, "not_found"), 404));
