@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type JSX } from "react";
 
 export type MemberForm = {
   fullName: string;
@@ -56,7 +56,7 @@ function Field({ label, name, value, onChange, error, type = "text", required = 
   );
 }
 
-export function MemberSheet({ canCreate = true, mode = "create", initialValues = initialForm }: { canCreate?: boolean; mode?: "create" | "edit"; initialValues?: MemberForm }) {
+export function MemberSheet({ canCreate = true, mode = "create", initialValues = initialForm }: { canCreate?: boolean; mode?: "create" | "edit"; initialValues?: MemberForm }): JSX.Element {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<MemberForm>(initialValues);
   const [errors, setErrors] = useState<FieldErrors>({});

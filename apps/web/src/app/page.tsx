@@ -1,4 +1,5 @@
 import { MemberSheet } from "./member-sheet";
+import type { JSX } from "react";
 
 const navItems = [
   ["⌂", "Dashboard"],
@@ -63,7 +64,7 @@ function ErrorState() {
   return <div className="state-panel"><div><strong>Data belum tersedia</strong><p>Silakan coba lagi beberapa saat kemudian.</p><button className="button button-secondary" type="button" style={{ marginTop: 14 }}>Coba lagi</button></div></div>;
 }
 
-export default function HomePage() {
+export default function HomePage(): JSX.Element {
   return (
     <div className="shell" id="dashboard">
       <Sidebar />
