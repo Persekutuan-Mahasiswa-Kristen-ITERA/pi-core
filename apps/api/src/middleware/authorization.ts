@@ -10,6 +10,7 @@
  */
 import { can, type PermissionKey, type Target } from "@pi-core/shared";
 import type { Context, MiddlewareHandler } from "hono";
+import { errorBody } from "../http/errors";
 import type { AppEnv } from "../env";
 
 export interface RequirePermissionOptions {
@@ -27,12 +28,14 @@ export function requirePermission(
   return async (c, next) => {
     const actor = c.get("actor");
     if (actor === undefined) {
-      return c.json({ error: { code: "unauthenticated", message: "Sign in required." } }, 401);
+      // The uniform envelope (FR-51), so a 401 here looks like every other error. `unauthorized` is the
+      // code the client branches on; `unauthenticated` is kept as an alias for older callers.
+      return c.json(errorBody(c, "unauthorized", "Sign in required."), 401);
     }
 
     const target = options.target?.(c);
     if (!can(actor, permission, target)) {
-      return c.json({ error: { code: "forbidden", message: "You do not have permission to do this." } }, 403);
+      return c.json(errorBody(c, "forbidden"), 403);
     }
 
     await next();

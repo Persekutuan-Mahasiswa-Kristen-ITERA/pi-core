@@ -7,6 +7,7 @@ import { requestIdMiddleware } from "./middleware/request-id";
 import { securityHeadersMiddleware } from "./middleware/security-headers";
 import { authRoutes } from "./routes/auth";
 import { healthRoutes } from "./routes/health";
+import { memberRoutes } from "./routes/members";
 import { mobileAuthRoutes } from "./routes/mobile-auth";
 import { signInPageRoutes } from "./routes/sign-in-page";
 
@@ -62,6 +63,9 @@ app.route("/sign-in", signInPageRoutes);
 
 // Mobile hand-off (story 3.3): the system browser returns here, the app exchanges the code for a token.
 app.route("/api/v1/auth/mobile", mobileAuthRoutes);
+
+// Member reads (story 4.2). Scope is enforced inside the SQL, not here — see packages/db/src/members.ts.
+app.route("/api/v1/members", memberRoutes);
 
 // The uniform envelope applies to the two responses Hono produces without a route (FR-51).
 app.notFound((c) => c.json(errorBody(c, "not_found"), 404));

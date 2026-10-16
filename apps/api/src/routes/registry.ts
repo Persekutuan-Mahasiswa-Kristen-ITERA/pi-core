@@ -93,6 +93,24 @@ export const ROUTE_AUTHORIZATION: readonly RouteAuthorization[] = [
     reason:
       "Ends exactly the session the caller presents as a Bearer token — it deletes only the row matching that token, so it can revoke nothing else and grants no access. Returning ok for an unknown token is deliberate: sign-out should be idempotent and must not report whether a token was valid.",
   },
+  {
+    file: "routes/members.ts",
+    method: "GET",
+    path: "/",
+    mountedAt: "/api/v1/members",
+    permission: "member:read",
+    reason:
+      "List members. Guarded by member:read, and the actor's scope is applied inside the SQL (FR-26) rather than by filtering the result, so no code path can return a row the scope excluded. Sensitive columns (NIM, phone) are only selected when the actor holds member:read_sensitive (FR-9); the response says whether they were included instead of leaving the client to guess.",
+  },
+  {
+    file: "routes/members.ts",
+    method: "GET",
+    path: "/:id",
+    mountedAt: "/api/v1/members",
+    permission: "member:read",
+    reason:
+      "One member, same scope rules as the list. A member outside the actor's scope answers 404 rather than 403, deliberately: a distinct forbidden would confirm the id exists, which is the enumeration the scoping exists to prevent (FR-8).",
+  },
 ];
 
 /** Every registration the coverage test expects to find, as `file METHOD path`. */
