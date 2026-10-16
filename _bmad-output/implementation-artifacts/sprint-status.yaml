@@ -79,7 +79,7 @@ development_status:
 
   epic-5: in-progress
   5-1-mobile-shell-tokens-and-components: done
-  5-2-mobile-auth-screens: backlog
+  5-2-mobile-auth-screens: done
   5-3-mobile-core-screens: backlog
   5-4-mobile-states-a11y-and-fidelity-check: backlog
   epic-5-retrospective: optional

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Modal,
   Pressable,
   SafeAreaView,
@@ -13,8 +12,9 @@ import {
 
 import { loadSession, MobileSignInError, signInWithGoogle, signOut, type SignedInSession } from "./src/auth/session";
 import { AppIcon } from "./src/components/AppIcon";
+import { AuthScreen } from "./src/auth/AuthScreen";
 
-import { tokens, type AppTab, tabLabels } from "./src/theme/tokens";
+import { tokens, type AppTab, tabLabels } from "./src/theme/tokens"
 
 type AuthState =
   | { kind: "checking" }
@@ -52,7 +52,13 @@ export default function App() {
   }, []);
 
   if (auth.kind !== "signed-in") {
-    return <AuthScreen state={auth} onSignIn={() => void onSignIn()} />;
+    return (
+      <AuthScreen
+        errorMessage={auth.kind === "error" ? auth.message : undefined}
+        loading={auth.kind === "checking" || auth.kind === "working"}
+        onGooglePress={() => void onSignIn()}
+      />
+    );
   }
 
   return (
@@ -172,33 +178,6 @@ function PlaceholderScreen({ title }: { title: string }) {
   );
 }
 
-function AuthScreen({ state, onSignIn }: { state: AuthState; onSignIn: () => void }) {
-  return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={tokens.colors.brown} />
-      <View style={styles.authHeader}>
-        <Text style={styles.authBrand}>PI-CORE</Text>
-        <Text style={styles.authOrg}>PMK ITERA</Text>
-      </View>
-      <View style={styles.authBody}>
-        {state.kind === "checking" || state.kind === "working" ? <ActivityIndicator color={tokens.colors.accent} /> : null}
-        {state.kind === "working" ? <Text style={styles.authNote}>Menghubungi Google…</Text> : null}
-        {state.kind === "signed-out" || state.kind === "error" ? (
-          <>
-            <Text style={styles.authTitle}>Selamat datang</Text>
-            <Text style={styles.authBodyText}>Masuk dengan akun Google ITERA Anda untuk melanjutkan.</Text>
-            {state.kind === "error" ? <Text style={styles.error}>{state.message}</Text> : null}
-            <Pressable accessibilityRole="button" onPress={onSignIn} style={styles.authButton}>
-              <Text style={styles.authButtonText}>Masuk dengan Google</Text>
-            </Pressable>
-            <Text style={styles.authNote}>Login menggunakan system browser. Password tidak melewati aplikasi.</Text>
-          </>
-        ) : null}
-      </View>
-    </SafeAreaView>
-  );
-}
-
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: tokens.colors.cream },
   app: { flex: 1, backgroundColor: tokens.colors.cream },
@@ -242,14 +221,4 @@ const styles = StyleSheet.create({
   drawerSignOutText: { color: tokens.colors.brown, fontSize: tokens.typography.body, fontWeight: "700" },
   placeholder: { minHeight: 300, justifyContent: "center", alignItems: "center", gap: 10 },
   placeholderBody: { color: tokens.colors.body, fontSize: tokens.typography.body, textAlign: "center" },
-  authHeader: { backgroundColor: tokens.colors.brown, height: 255, borderBottomLeftRadius: 124, padding: tokens.spacing.screen, justifyContent: "center" },
-  authBrand: { color: tokens.colors.white, fontSize: 26, fontWeight: "800", letterSpacing: 2 },
-  authOrg: { color: tokens.colors.welcomeEyebrow, fontSize: 18, letterSpacing: 1.4, marginTop: 7 },
-  authBody: { flex: 1, padding: tokens.spacing.screen, justifyContent: "center", gap: tokens.spacing.md },
-  authTitle: { color: tokens.colors.onLogin, fontSize: 24, fontWeight: "700" },
-  authBodyText: { color: tokens.colors.body, fontSize: 15, lineHeight: 22 },
-  authButton: { backgroundColor: tokens.colors.brown, borderRadius: tokens.radius.pill, alignItems: "center", paddingVertical: 14, minHeight: 48 },
-  authButtonText: { color: tokens.colors.white, fontSize: 14, fontWeight: "700" },
-  authNote: { color: tokens.colors.muted, fontSize: tokens.typography.small },
-  error: { color: tokens.colors.danger, fontSize: tokens.typography.body },
 });
