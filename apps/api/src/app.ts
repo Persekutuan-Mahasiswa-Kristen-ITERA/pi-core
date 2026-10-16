@@ -12,6 +12,7 @@ import { memberRoutes } from "./routes/members";
 import { mobileAuthRoutes } from "./routes/mobile-auth";
 import { orgUnitRoutes } from "./routes/org-units";
 import { periodRoutes } from "./routes/periods";
+import { roleRoutes } from "./routes/roles";
 import { signInPageRoutes } from "./routes/sign-in-page";
 
 /**
@@ -78,6 +79,9 @@ app.route("/api/v1/org-units", orgUnitRoutes);
 
 // Avatar presign (story 4.4). Uploads go straight to R2, so the Worker never handles the bytes.
 app.route("/api/v1/members", avatarRoutes);
+
+// Roles and the permission catalog (story 4.7). System roles are read-only at the db layer, not in the UI.
+app.route("/api/v1/roles", roleRoutes);
 
 // The uniform envelope applies to the two responses Hono produces without a route (FR-51).
 app.notFound((c) => c.json(errorBody(c, "not_found"), 404));

@@ -228,6 +228,50 @@ export const ROUTE_AUTHORIZATION: readonly RouteAuthorization[] = [
     reason:
       "Finish an upload: verify the bytes really are an image, strip its metadata, and only then write avatarKey (FR-14, NFR-8). This is the step that closes the gap a presigned PUT leaves open — R2 stores the client's bytes verbatim, so the Worker reads the object once, removes the identifying JPEG APP1/APP13/COM segments or PNG tEXt/eXIf or WebP EXIF/XMP chunks, and puts the cleaned bytes back. It is a structural walk over the container, not a decode, which is why it fits in a Worker. Colour-bearing segments (ICC, Adobe) are deliberately KEPT: stripping them would shift every photo's colours without removing any identity. Refuses a key belonging to another member (keys are namespaced by member id), refuses bytes that are not a JPEG/PNG/WebP (magic bytes, not the declared content type — R2 enforced the content type we signed, this enforces what the file actually is, and the file is deleted), and refuses a missing object. avatarKey is written HERE and nowhere else, so an abandoned or failed upload leaves the profile untouched. Audited (FR-43) via the member update.",
   },
+  {
+    file: "routes/roles.ts",
+    method: "GET",
+    path: "/",
+    mountedAt: "/api/v1/roles",
+    permission: "role:read",
+    reason:
+      "List roles with their permissions (FR-22). Guarded by role:read. System roles come back with isSystem:true so the UI can show the lock (FR-23, D3) — but the lock is enforced at the write layer, not here.",
+  },
+  {
+    file: "routes/roles.ts",
+    method: "GET",
+    path: "/permissions",
+    mountedAt: "/api/v1/roles",
+    permission: "role:read",
+    reason:
+      "The fixed permission catalog (FR-24). Declared BEFORE /:id because Hono matches in registration order — the other way round the catalog would be swallowed as a role id and become unreachable.",
+  },
+  {
+    file: "routes/roles.ts",
+    method: "GET",
+    path: "/:id",
+    mountedAt: "/api/v1/roles",
+    permission: "role:read",
+    reason: "Read one role by id or key (FR-22). Guarded by role:read; an unknown id is a 404.",
+  },
+  {
+    file: "routes/roles.ts",
+    method: "POST",
+    path: "/",
+    mountedAt: "/api/v1/roles",
+    permission: "role:manage",
+    reason:
+      "Create a custom role from the fixed catalog (FR-24). Guarded by role:manage. Every permission key is checked against PERMISSION_KEYS before anything is written, so a typo cannot create a role that grants nothing (silently useless) or something unrecognised (silently broad); the SCOPE is taken from the catalog and never from the request, because scope is a property of the permission rather than of whoever assembles the bundle. The key is namespaced `custom:` so it cannot collide with a seeded role, and isSystem is not settable from outside — a custom role cannot declare itself a system role. Audited (FR-43).",
+  },
+  {
+    file: "routes/roles.ts",
+    method: "PATCH",
+    path: "/:id",
+    mountedAt: "/api/v1/roles",
+    permission: "role:manage",
+    reason:
+      "Update a custom role (FR-24). Guarded by role:manage. Refuses system roles outright rather than ignoring the request (FR-23, D3): they are what the RBAC matrix is built on, so editing one in place would silently change what every existing member can do with no record that the matrix moved — and a silent no-op would let an admin believe they had changed it. Audited (FR-43) with the before/after permission sets.",
+  },
 ];
 
 /** Every registration the coverage test expects to find, as `file METHOD path`. */
