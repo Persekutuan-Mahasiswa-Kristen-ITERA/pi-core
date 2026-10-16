@@ -45,15 +45,20 @@ export interface MemberSummary {
   status: string;
 }
 
-/** Added only with `member:read_sensitive`. */
-export interface MemberSensitive {
-  nim: string | null;
-  phone: string | null;
+/**
+ * Added only with `member:read_sensitive` (FR-9).
+ *
+ * Flat, not nested, because that is the shape the query actually returns — the columns are spread into
+ * the row. An earlier version declared a nested `sensitive` object while the runtime spread the fields,
+ * so every consumer typed against a shape that did not exist. The compiler caught it in the tests.
+ */
+export interface MemberListItem extends MemberSummary {
+  nim?: string | null | undefined;
+  phone?: string | null | undefined;
 }
 
-export interface MemberListItem extends MemberSummary {
-  sensitive?: MemberSensitive;
-}
+/** The names of the fields that appear only with `member:read_sensitive`. */
+export const SENSITIVE_MEMBER_COLUMNS = ["nim", "phone"] as const;
 
 export interface MemberListParams {
   actor: Actor;
@@ -189,7 +194,15 @@ export async function getMember(
   db: Database,
   params: { actor: Actor; id: string },
 ): Promise<MemberListItem | null> {
-  const includeSensitive = can(params.actor, READ_SENSITIVE);
+  /**
+   * Reading your **own** record always includes the sensitive columns, permission or not.
+   *
+   * FR-9's purpose is to stop one member reading *another's* NIM and phone; applying it to your own row
+   * would mean you cannot see the phone number you just typed, which cannot be the intent. The list
+   * stays permission-only (it is a directory of other people), so this is the one place the two differ —
+   * stated here rather than left for someone to discover.
+   */
+  const includeSensitive = can(params.actor, READ_SENSITIVE) || params.id === params.actor.memberId;
   const scope = await scopeCondition(db, params.actor);
   if (scope === undefined && scopeFor(params.actor, READ) === undefined) return null;
 

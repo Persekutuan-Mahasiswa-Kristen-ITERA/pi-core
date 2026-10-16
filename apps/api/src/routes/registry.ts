@@ -111,6 +111,33 @@ export const ROUTE_AUTHORIZATION: readonly RouteAuthorization[] = [
     reason:
       "One member, same scope rules as the list. A member outside the actor's scope answers 404 rather than 403, deliberately: a distinct forbidden would confirm the id exists, which is the enumeration the scoping exists to prevent (FR-8).",
   },
+  {
+    file: "routes/members.ts",
+    method: "POST",
+    path: "/",
+    mountedAt: "/api/v1/members",
+    permission: "member:create",
+    reason:
+      "Create a member (FR-10). Guarded by member:create; the body is a .strict() zod schema so an unknown field is rejected rather than dropped — silently ignoring status or googleSub is how mass assignment gets in. A duplicate email is answered as a conflict, not a 500, and every creation writes an audit row (FR-43).",
+  },
+  {
+    file: "routes/members.ts",
+    method: "PATCH",
+    path: "/:id",
+    mountedAt: "/api/v1/members",
+    permission: "profile:update_own",
+    reason:
+      "Update a member (FR-11). The route guard is the SELF form of profile:update_own — which every member holds — because the real rule is per-field and lives in updateMember: a member may change their own phone and photo, and anything else needs member:update with its own scope. Checking only profile:update_own here would let a member set their own status or email, so the field allow-list is the actual control. Audited (FR-43), and an out-of-scope member is 'not found' rather than updatable.",
+  },
+  {
+    file: "routes/members.ts",
+    method: "POST",
+    path: "/:id/deactivate",
+    mountedAt: "/api/v1/members",
+    permission: "member:deactivate",
+    reason:
+      "Soft-delete a member (FR-12) and end their access (FR-5). Guarded by member:deactivate. The row is never hard-deleted — assignments and audit rows reference it — so status becomes inactive and deleted_at is set; the member's sessions are deleted in the same call and the count is returned, so the caller can see that access actually ended rather than merely that a column changed. Audited (FR-43).",
+  },
 ];
 
 /** Every registration the coverage test expects to find, as `file METHOD path`. */

@@ -159,6 +159,16 @@ try {
     check("no NIM value anywhere in the serialized payload", JSON.stringify(cResult.items).includes("333"), false);
   }
 
+  console.log("\nFR-9 — your own record is the one exception: you can see your own NIM and phone");
+  const ownDetail = await getMember(db, { actor: actorC, id: c.id });
+  check("C sees their own NIM even without the permission", ownDetail?.nim, "333");
+  const otherDetail = await getMember(db, { actor: actorA, id: a.id });
+  check(
+    "and a non-permitted actor sees their own too, by the same rule",
+    otherDetail?.nim !== undefined,
+    true,
+  );
+
   // ---- search and pagination ------------------------------------------------
   console.log("\nFR-51 — search matches name or email, and pagination is cursor-based");
   const superAdminActor: Actor = { memberId: a.id, roles: ["super_admin"] };
