@@ -9,6 +9,7 @@ import { authRoutes } from "./routes/auth";
 import { healthRoutes } from "./routes/health";
 import { memberRoutes } from "./routes/members";
 import { mobileAuthRoutes } from "./routes/mobile-auth";
+import { periodRoutes } from "./routes/periods";
 import { signInPageRoutes } from "./routes/sign-in-page";
 
 /**
@@ -66,6 +67,9 @@ app.route("/api/v1/auth/mobile", mobileAuthRoutes);
 
 // Member reads (story 4.2). Scope is enforced inside the SQL, not here — see packages/db/src/members.ts.
 app.route("/api/v1/members", memberRoutes);
+
+// Periods (story 4.6). Activation is its own endpoint because it is its own permission.
+app.route("/api/v1/periods", periodRoutes);
 
 // The uniform envelope applies to the two responses Hono produces without a route (FR-51).
 app.notFound((c) => c.json(errorBody(c, "not_found"), 404));

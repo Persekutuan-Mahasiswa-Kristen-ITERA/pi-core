@@ -138,6 +138,42 @@ export const ROUTE_AUTHORIZATION: readonly RouteAuthorization[] = [
     reason:
       "Soft-delete a member (FR-12) and end their access (FR-5). Guarded by member:deactivate. The row is never hard-deleted — assignments and audit rows reference it — so status becomes inactive and deleted_at is set; the member's sessions are deleted in the same call and the count is returned, so the caller can see that access actually ended rather than merely that a column changed. Audited (FR-43).",
   },
+  {
+    file: "routes/periods.ts",
+    method: "GET",
+    path: "/",
+    mountedAt: "/api/v1/periods",
+    permission: "period:read",
+    reason:
+      "List periods and report which is active (FR-22's filter needs to know). Guarded by period:read; a period is not personal data, so there is no scope narrowing beyond the permission.",
+  },
+  {
+    file: "routes/periods.ts",
+    method: "POST",
+    path: "/",
+    mountedAt: "/api/v1/periods",
+    permission: "period:manage",
+    reason:
+      "Create a period (FR-19). Guarded by period:manage, body is a .strict() zod schema with ISO dates only (the column is a date, so accepting a timestamp invites timezone surprises), and the new period is deliberately NOT active — activation is a separate audited decision, and creating a period must not silently change everyone's access. Audited (FR-43).",
+  },
+  {
+    file: "routes/periods.ts",
+    method: "PATCH",
+    path: "/:id",
+    mountedAt: "/api/v1/periods",
+    permission: "period:manage",
+    reason:
+      "Edit a period's label or dates (FR-19). Guarded by period:manage; the date range is re-checked after merging with the stored row, so a partial update cannot produce an end before a start. Audited (FR-43).",
+  },
+  {
+    file: "routes/periods.ts",
+    method: "POST",
+    path: "/:id/activate",
+    mountedAt: "/api/v1/periods",
+    permission: "period:activate",
+    reason:
+      "Activate a period (FR-20, FR-21). Guarded by period:activate, which is a separate permission from period:manage on purpose. Deactivate-then-activate inside ONE transaction: the partial unique index permits only one active row, so the other order would violate it mid-transaction, and doing the two statements separately would leave a window with no active period during which every scoped query silently returns nothing. One audit row for the whole event, because what matters is that access moved and between which periods.",
+  },
 ];
 
 /** Every registration the coverage test expects to find, as `file METHOD path`. */
