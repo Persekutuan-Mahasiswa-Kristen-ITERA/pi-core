@@ -70,7 +70,7 @@ development_status:
   4-5-organization-units-read-manage: done
   4-6-periods-crud-activation-and-filtering: done
   4-7-roles-read-custom-roles: done
-  4-8-assignments-read-manage-derived-role: backlog
+  4-8-assignments-read-manage-derived-role: done
   4-9-settings-allowed-domains-org-profile: backlog
   4-10-audit-log-ui: backlog
   4-11-admin-web-shell-tokens-components-states: backlog

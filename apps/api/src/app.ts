@@ -6,6 +6,7 @@ import { authRateLimit } from "./middleware/rate-limit";
 import { requestIdMiddleware } from "./middleware/request-id";
 import { securityHeadersMiddleware } from "./middleware/security-headers";
 import { authRoutes } from "./routes/auth";
+import { assignmentRoutes } from "./routes/assignments";
 import { avatarRoutes } from "./routes/avatar";
 import { healthRoutes } from "./routes/health";
 import { memberRoutes } from "./routes/members";
@@ -82,6 +83,9 @@ app.route("/api/v1/members", avatarRoutes);
 
 // Roles and the permission catalog (story 4.7). System roles are read-only at the db layer, not in the UI.
 app.route("/api/v1/roles", roleRoutes);
+
+// Assignments and the derived role (story 4.8). The rank/subtree guard runs on the way in (FR-27).
+app.route("/api/v1/assignments", assignmentRoutes);
 
 // The uniform envelope applies to the two responses Hono produces without a route (FR-51).
 app.notFound((c) => c.json(errorBody(c, "not_found"), 404));

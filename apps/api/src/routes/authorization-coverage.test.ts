@@ -49,6 +49,9 @@ const NON_ROUTE_CALLS: readonly string[] = [
   "routes/roles.ts GET db",
   "routes/roles.ts GET actor",
   "routes/roles.ts GET requestId",
+  "routes/assignments.ts GET db",
+  "routes/assignments.ts GET actor",
+  "routes/assignments.ts GET requestId",
 ];
 
 function sourceFiles(dir: string): string[] {

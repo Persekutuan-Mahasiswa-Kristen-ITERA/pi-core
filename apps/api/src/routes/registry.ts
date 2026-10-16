@@ -272,6 +272,51 @@ export const ROUTE_AUTHORIZATION: readonly RouteAuthorization[] = [
     reason:
       "Update a custom role (FR-24). Guarded by role:manage. Refuses system roles outright rather than ignoring the request (FR-23, D3): they are what the RBAC matrix is built on, so editing one in place would silently change what every existing member can do with no record that the matrix moved — and a silent no-op would let an admin believe they had changed it. Audited (FR-43) with the before/after permission sets.",
   },
+  {
+    file: "routes/assignments.ts",
+    method: "GET",
+    path: "/",
+    mountedAt: "/api/v1/assignments",
+    permission: "assignment:read",
+    reason:
+      "List assignments, scoped: `U` sees only its own subtree, `S` only its own rows, and the filter is applied in SQL rather than after the fact — reading out-of-scope rows and discarding them would put them in the process's memory and in the query log, which for an authorization surface is a leak even when the response is correct. Each row carries its derived roles (FR-32) and whether its period is the active one (FR-31).",
+  },
+  {
+    file: "routes/assignments.ts",
+    method: "GET",
+    path: "/positions",
+    mountedAt: "/api/v1/assignments",
+    permission: "assignment:read",
+    reason:
+      "The position catalog, so a form can offer them. Read-only: positions are seeded from the design, not user-managed. Declared BEFORE /:id because Hono matches in registration order and the reverse would swallow the path as an id.",
+  },
+  {
+    file: "routes/assignments.ts",
+    method: "GET",
+    path: "/positions/:id/roles",
+    mountedAt: "/api/v1/assignments",
+    permission: "assignment:read",
+    reason:
+      "The roles a position confers (FR-32), so the assignment form can show the role READ-ONLY instead of guessing it. This is the same derivation the create path uses, exposed rather than duplicated — a second implementation of the mapping is exactly how a form ends up promising a role the database will not grant.",
+  },
+  {
+    file: "routes/assignments.ts",
+    method: "POST",
+    path: "/",
+    mountedAt: "/api/v1/assignments",
+    permission: "assignment:manage",
+    reason:
+      "Create an assignment (FR-27, FR-32). Guarded by assignment:manage; the rank/subtree guard runs through enforceAssignmentChange, which also writes the audit row on REFUSAL — the refusals are the interesting half of the log. There is deliberately no `role` field in the body: the role is derived from the position via position_roles, and the way to guarantee a caller cannot supply one is for the field not to exist. `unitType` and `isUniquePerUnit` are copied from the position, not from the request, so the composite FKs make the database itself the guarantor. Audited (FR-43).",
+  },
+  {
+    file: "routes/assignments.ts",
+    method: "PATCH",
+    path: "/:id",
+    mountedAt: "/api/v1/assignments",
+    permission: "assignment:manage",
+    reason:
+      "End or transfer an assignment (FR-33) — the same row changing shape, so one endpoint. Guarded by assignment:manage, and the guard re-runs against the NEW destination: a transfer moves authority and must satisfy the same rank/subtree rule as the original placement, because checking only the old location would let an admin move someone into a unit they cannot manage. An `endsOn` before `startsOn` is refused rather than stored: the assignment would exist, look active, and grant nothing. Audited (FR-43) with the before/after window.",
+  },
 ];
 
 /** Every registration the coverage test expects to find, as `file METHOD path`. */
