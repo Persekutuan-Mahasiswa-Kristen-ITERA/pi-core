@@ -210,6 +210,15 @@ export const ROUTE_AUTHORIZATION: readonly RouteAuthorization[] = [
     reason:
       "Soft-delete a unit (FR-16) — the only removal offered, because units referenced by assignments must never be hard-deleted. Refused while it still has active children, which would otherwise leave them reachable while their scope path points at a unit no longer part of the tree. Assignments are NOT a reason to refuse: that is exactly the case FR-16 says must be soft-deleted, so the count is recorded instead. Audited (FR-43).",
   },
+  {
+    file: "routes/avatar.ts",
+    method: "POST",
+    path: "/:id/avatar/presign",
+    mountedAt: "/api/v1/members",
+    permission: "profile:update_own",
+    reason:
+      "Mint a presigned R2 PUT (FR-14). Guarded by the self form of profile:update_own, and the handler additionally allows member:update for someone else's photo — uploading is a write, so the write rules apply rather than the read scopes. Type and size are enforced by R2 itself, not here: the content type and length are signed into the URL, so a client sending anything else gets a 403 from R2 — that constrains the OBJECT, whereas a handler check would only constrain the request. The key is random and namespaced, because a predictable key lets anyone who learns the layout enumerate avatars. The key is NOT stored on the member here; the client PATCHes avatarKey after the upload succeeds, so an abandoned upload cannot leave a member pointing at an object that was never written.",
+  },
 ];
 
 /** Every registration the coverage test expects to find, as `file METHOD path`. */

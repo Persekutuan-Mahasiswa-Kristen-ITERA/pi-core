@@ -34,6 +34,15 @@ export interface Env {
    * mutate.
    */
   CORS_ORIGINS?: string;
+  /** Cloudflare account id — the R2 S3 endpoint is `<account>.r2.cloudflarestorage.com`. Not a secret. */
+  R2_ACCOUNT_ID?: string;
+  /** The bucket avatars live in. A var, not a secret. */
+  AVATAR_BUCKET: string;
+  /** R2 S3 credentials for presigning (story 4.4). Secrets; set with `wrangler secret put`. */
+  R2_ACCESS_KEY_ID?: string;
+  R2_SECRET_ACCESS_KEY?: string;
+  /** R2 binding, used to serve avatars back without a round trip through S3. */
+  AVATARS?: R2Bucket;
 }
 
 /** Hono environment for this app. */

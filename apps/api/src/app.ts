@@ -6,6 +6,7 @@ import { authRateLimit } from "./middleware/rate-limit";
 import { requestIdMiddleware } from "./middleware/request-id";
 import { securityHeadersMiddleware } from "./middleware/security-headers";
 import { authRoutes } from "./routes/auth";
+import { avatarRoutes } from "./routes/avatar";
 import { healthRoutes } from "./routes/health";
 import { memberRoutes } from "./routes/members";
 import { mobileAuthRoutes } from "./routes/mobile-auth";
@@ -74,6 +75,9 @@ app.route("/api/v1/periods", periodRoutes);
 
 // Organization units (story 4.5). Subtree checks ride on the materialised path (FR-18).
 app.route("/api/v1/org-units", orgUnitRoutes);
+
+// Avatar presign (story 4.4). Uploads go straight to R2, so the Worker never handles the bytes.
+app.route("/api/v1/members", avatarRoutes);
 
 // The uniform envelope applies to the two responses Hono produces without a route (FR-51).
 app.notFound((c) => c.json(errorBody(c, "not_found"), 404));

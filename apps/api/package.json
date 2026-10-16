@@ -20,6 +20,7 @@
     "better-auth": "~1.6.33",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.9.10",
+    "aws4fetch": "^1.0.20",
     "zod": "^4.1.0"
   },
   "devDependencies": {

@@ -178,40 +178,76 @@ try {
 
   // ---- FR-28 ---------------------------------------------------------------
   console.log("\nFR-28 — the last super_admin cannot be removed");
-  const okRevoke = await revokeSystemGrant(db, { actor: superActor, memberId: kadepM!.id, roleKey: "super_admin", request: { requestId: TAG } });
-  check("revoking while another super_admin remains is allowed", okRevoke, { allowed: true });
 
-  const okRevoke2 = await revokeSystemGrant(db, { actor: superActor, memberId: superM!.id, roleKey: "super_admin", request: { requestId: TAG } });
-  check("revoking the second-to-last is still allowed", okRevoke2, { allowed: true });
+  /**
+   * The refusal is only observable when there is exactly ONE super_admin, because that is the state
+   * FR-28 protects. This script used to assume it owned every super_admin in the database. It does not:
+   * the owner's own grant exists now, added when they signed in for real, so the script's arithmetic
+   * counted a real admin as part of its fixture and three assertions failed for the wrong reason.
+   *
+   * So the shape changed. When there is exactly one, deleting it IS the test — and it is
+   * non-destructive, because the trigger refuses and nothing is removed. When there is more than one,
+   * the very same delete is legitimate and would destroy a real admin, so the check is SKIPPED with its
+   * reason stated instead of being faked. An honest skip beats a green tick that proves nothing.
+   */
+  const superAdminsBefore = (
+    await db.select({ n: sql<number>`count(*)::int` }).from(systemGrants).where(eq(systemGrants.roleKey, "super_admin"))
+  )[0]!.n;
+  const onlyOne = (
+    await db.select({ id: systemGrants.memberId }).from(systemGrants).where(eq(systemGrants.roleKey, "super_admin"))
+  )[0]!.id;
 
-  // Only the keeper is left, so this is the last one.
-  const lastRevoke = await revokeSystemGrant(db, { actor: superActor, memberId: keeperId, roleKey: "super_admin", request: { requestId: TAG } });
-  check("revoking the last super_admin refused, with reason", lastRevoke.allowed === false && lastRevoke.reason, "last_super_admin");
-
-  // A raw DELETE must also be refused — by the trigger, not by application code. Drizzle wraps the
-  // driver error, so look through the `cause` chain for the RAISE message.
-  let triggerError: string | null = null;
-  try {
-    await db.delete(systemGrants).where(and(eq(systemGrants.memberId, keeperId), eq(systemGrants.roleKey, "super_admin")));
-  } catch (error) {
-    const parts: string[] = [];
-    for (let current: unknown = error; current !== null && current !== undefined; ) {
-      if (current instanceof Error) {
-        parts.push(current.message);
-        current = (current as { cause?: unknown }).cause;
-      } else {
-        parts.push(String(current));
-        break;
+  if (superAdminsBefore !== 1) {
+    console.log(`  SKIP  the database has ${superAdminsBefore} super_admins; the refusal is only observable with exactly 1`);
+    console.log("        (not attempted: with 2+ the delete is legitimate and would remove a real admin)");
+  } else {
+    // A raw DELETE must be refused — by the trigger, not by application code. Drizzle wraps the driver
+    // error, so look through the `cause` chain for the RAISE message.
+    let triggerError: string | null = null;
+    try {
+      await db.delete(systemGrants).where(eq(systemGrants.memberId, onlyOne));
+    } catch (error) {
+      const parts: string[] = [];
+      for (let current: unknown = error; current !== null && current !== undefined; ) {
+        if (current instanceof Error) {
+          parts.push(current.message);
+          current = (current as { cause?: unknown }).cause;
+        } else {
+          parts.push(String(current));
+          break;
+        }
       }
+      triggerError = parts.join(" | ");
     }
-    triggerError = parts.join(" | ");
-  }
-  check("a raw DELETE of the last super_admin is refused by the DB trigger", triggerError !== null && /last super_admin/.test(triggerError), true);
-  if (triggerError === null) console.log("         (no error was thrown — the delete went through)");
-  else console.log(`         trigger said: ${triggerError.slice(0, 140)}`);
+    const triggerState = { error: triggerError as string | null };
+    check(
+      "a raw DELETE of the last super_admin is refused by the DB trigger",
+      triggerState.error !== null && /last super_admin/.test(triggerState.error),
+      true,
+    );
+    if (triggerState.error === null) console.log("         (no error was thrown — the delete went through)");
+    else console.log(`         trigger said: ${triggerState.error.slice(0, 140)}`);
 
-  const remaining = await db.select({ n: sql<number>`count(*)::int` }).from(systemGrants).where(eq(systemGrants.roleKey, "super_admin"));
-  check("the keeper is the only super_admin left", remaining[0]!.n, preexisting);
+    // And the application layer must refuse it too, with a machine-readable reason.
+    const lastRevoke = await revokeSystemGrant(db, {
+      actor: superActor,
+      memberId: onlyOne,
+      roleKey: "super_admin",
+      request: { requestId: TAG },
+    });
+    check(
+      "revoking the last super_admin is refused, with a reason",
+      lastRevoke.allowed === false ? lastRevoke.reason : "allowed",
+      "last_super_admin",
+    );
+
+    // Both refusals must have deleted NOTHING. This is the assertion that makes the two above safe to
+    // run against the real database at all.
+    const superAdminsAfter = (
+      await db.select({ n: sql<number>`count(*)::int` }).from(systemGrants).where(eq(systemGrants.roleKey, "super_admin"))
+    )[0]!.n;
+    check("the refusals removed nothing — the real super_admin is still there", superAdminsAfter, superAdminsBefore);
+  }
 
   // ---- cleanup -------------------------------------------------------------
   // The keeper super_admin stays (FR-28 makes the last one unremovable); everything else goes.

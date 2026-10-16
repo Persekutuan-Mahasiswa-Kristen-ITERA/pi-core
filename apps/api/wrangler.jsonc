@@ -22,8 +22,16 @@
 	},
 	"vars": {
 		"BETTER_AUTH_URL": "http://localhost:8787",
-		"MOBILE_REDIRECT_URIS": "picore://auth,exp://"
+		"MOBILE_REDIRECT_URIS": "picore://auth,exp://",
+		"AVATAR_BUCKET": "pmk-core-avatars",
+		"R2_ACCOUNT_ID": "a45092ffd0f9ad41070ed8c57d938052"
 	},
+	"r2_buckets": [
+		{
+			"binding": "AVATARS",
+			"bucket_name": "pmk-core-avatars"
+		}
+	],
 	"env": {
 		"staging": {
 			"name": "pi-core-api-staging",
@@ -31,8 +39,16 @@
 				"ENVIRONMENT": "staging",
 				"BETTER_AUTH_URL": "https://pi-core-api-staging.pmkitera.workers.dev",
 				"MOBILE_REDIRECT_URIS": "picore://auth",
-				"CORS_ORIGINS": "https://pi-core-web-staging.pmkitera.workers.dev"
+				"CORS_ORIGINS": "https://pi-core-web-staging.pmkitera.workers.dev",
+				"AVATAR_BUCKET": "pmk-core-avatars",
+				"R2_ACCOUNT_ID": "a45092ffd0f9ad41070ed8c57d938052"
 			},
+			"r2_buckets": [
+				{
+					"binding": "AVATARS",
+					"bucket_name": "pmk-core-avatars"
+				}
+			],
 			"hyperdrive": [
 				{
 					"binding": "HYPERDRIVE",
