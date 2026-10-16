@@ -20,6 +20,7 @@
  * The key is random and namespaced. Random because a predictable key lets anyone who learns the bucket
  * layout enumerate avatars; namespaced under `avatars/` so the bucket can hold other things later.
  */
+import { detectImageType, stripImageMetadata } from "@pi-core/shared";
 import { AwsClient } from "aws4fetch";
 import type { Env } from "./env";
 
@@ -48,8 +49,18 @@ export interface PresignedAvatarUpload {
   maxBytes: number;
 }
 
+export interface ConfirmedAvatarUpload {
+  key: string;
+  contentType: string;
+  bytes: number;
+  /** Bytes removed by metadata stripping — reported so the behaviour is observable, not assumed. */
+  bytesRemoved: number;
+}
+
 export class AvatarError extends Error {
-  constructor(readonly code: "unsupported_type" | "too_large" | "not_configured") {
+  constructor(
+    readonly code: "unsupported_type" | "too_large" | "not_configured" | "not_found" | "not_an_image",
+  ) {
     super(code);
     this.name = "AvatarError";
   }
@@ -67,7 +78,7 @@ export function isAllowedAvatarType(value: string): value is AllowedAvatarType {
  */
 export async function presignAvatarUpload(
   env: Env,
-  params: { contentType: string; size: number },
+  params: { memberId: string; contentType: string; size: number },
 ): Promise<PresignedAvatarUpload> {
   if (!isAllowedAvatarType(params.contentType)) throw new AvatarError("unsupported_type");
   if (!Number.isFinite(params.size) || params.size <= 0 || params.size > MAX_AVATAR_BYTES) {
@@ -81,7 +92,9 @@ export async function presignAvatarUpload(
     throw new AvatarError("not_configured");
   }
 
-  const key = `avatars/${crypto.randomUUID()}.${EXTENSIONS[params.contentType]}`;
+  // Namespaced BY MEMBER, then random. The member prefix is what lets `confirm` refuse a key that belongs
+  // to someone else; the random suffix is what stops anyone enumerating a member's photos.
+  const key = `avatars/${params.memberId}/${crypto.randomUUID()}.${EXTENSIONS[params.contentType]}`;
   const client = new AwsClient({
     accessKeyId: env.R2_ACCESS_KEY_ID,
     secretAccessKey: env.R2_SECRET_ACCESS_KEY,
@@ -106,5 +119,63 @@ export async function presignAvatarUpload(
     key,
     expiresAt: new Date(Date.now() + UPLOAD_URL_TTL_SECONDS * 1000).toISOString(),
     maxBytes: MAX_AVATAR_BYTES,
+  };
+}
+
+/**
+ * Finish an upload: verify it really is an image, strip its metadata, and write it back.
+ *
+ * This is the step that closes the NFR-8 gap. A presigned PUT cannot rewrite the object, so the client's
+ * bytes land in R2 verbatim; here the Worker reads them once, strips the identifying segments and chunks
+ * (see `stripImageMetadata` — a structural walk, not a decode), and puts the cleaned bytes back. It costs
+ * one read and one write of a file capped at 2 MiB, which is why the cap is not arbitrary.
+ *
+ * Three things this refuses, each for a different reason:
+ *
+ * - **A key belonging to another member.** The key is namespaced by member id, so a stolen or guessed key
+ *   cannot be attached to someone else's profile.
+ * - **Something that is not an image.** `detectImageType` reads the magic bytes rather than trusting the
+ *   declared content type, so a renamed script cannot become an avatar. R2 enforced the content type we
+ *   signed; this enforces what the bytes actually are.
+ * - **An object that is missing or over the cap.** A presigned URL that was never used, or an object that
+ *   grew, is refused rather than stored.
+ *
+ * Returns the byte count removed so the stripping is observable rather than assumed.
+ */
+export async function confirmAvatarUpload(
+  env: Env,
+  params: { memberId: string; key: string },
+): Promise<ConfirmedAvatarUpload> {
+  if (env.AVATARS === undefined) throw new AvatarError("not_configured");
+
+  const prefix = `avatars/${params.memberId}/`;
+  if (!params.key.startsWith(prefix) || params.key.includes("..") || params.key.length > 300) {
+    throw new AvatarError("not_found");
+  }
+
+  const object = await env.AVATARS.get(params.key);
+  if (object === null) throw new AvatarError("not_found");
+  if (object.size > MAX_AVATAR_BYTES) throw new AvatarError("too_large");
+
+  const original = new Uint8Array(await object.arrayBuffer());
+  const detected = detectImageType(original);
+  if (detected === null) {
+    // Do not keep whatever this is.
+    await env.AVATARS.delete(params.key);
+    throw new AvatarError("not_an_image");
+  }
+
+  const stripped = stripImageMetadata(original);
+  const contentType = object.httpMetadata?.contentType ?? detected;
+
+  if (stripped.length !== original.length) {
+    await env.AVATARS.put(params.key, stripped, { httpMetadata: { contentType } });
+  }
+
+  return {
+    key: params.key,
+    contentType,
+    bytes: stripped.length,
+    bytesRemoved: original.length - stripped.length,
   };
 }

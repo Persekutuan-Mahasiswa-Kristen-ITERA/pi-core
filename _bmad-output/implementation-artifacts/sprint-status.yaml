@@ -66,7 +66,7 @@ development_status:
   4-1-api-foundation-conventions-errors-validation-limits: done
   4-2-members-list-search-and-detail: done
   4-3-member-create-update-deactivate: done
-  4-4-avatar-upload-r2: backlog
+  4-4-avatar-upload-r2: done
   4-5-organization-units-read-manage: done
   4-6-periods-crud-activation-and-filtering: done
   4-7-roles-read-custom-roles: backlog

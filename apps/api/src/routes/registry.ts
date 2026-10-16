@@ -219,6 +219,15 @@ export const ROUTE_AUTHORIZATION: readonly RouteAuthorization[] = [
     reason:
       "Mint a presigned R2 PUT (FR-14). Guarded by the self form of profile:update_own, and the handler additionally allows member:update for someone else's photo — uploading is a write, so the write rules apply rather than the read scopes. Type and size are enforced by R2 itself, not here: the content type and length are signed into the URL, so a client sending anything else gets a 403 from R2 — that constrains the OBJECT, whereas a handler check would only constrain the request. The key is random and namespaced, because a predictable key lets anyone who learns the layout enumerate avatars. The key is NOT stored on the member here; the client PATCHes avatarKey after the upload succeeds, so an abandoned upload cannot leave a member pointing at an object that was never written.",
   },
+  {
+    file: "routes/avatar.ts",
+    method: "POST",
+    path: "/:id/avatar/confirm",
+    mountedAt: "/api/v1/members",
+    permission: "profile:update_own",
+    reason:
+      "Finish an upload: verify the bytes really are an image, strip its metadata, and only then write avatarKey (FR-14, NFR-8). This is the step that closes the gap a presigned PUT leaves open — R2 stores the client's bytes verbatim, so the Worker reads the object once, removes the identifying JPEG APP1/APP13/COM segments or PNG tEXt/eXIf or WebP EXIF/XMP chunks, and puts the cleaned bytes back. It is a structural walk over the container, not a decode, which is why it fits in a Worker. Colour-bearing segments (ICC, Adobe) are deliberately KEPT: stripping them would shift every photo's colours without removing any identity. Refuses a key belonging to another member (keys are namespaced by member id), refuses bytes that are not a JPEG/PNG/WebP (magic bytes, not the declared content type — R2 enforced the content type we signed, this enforces what the file actually is, and the file is deleted), and refuses a missing object. avatarKey is written HERE and nowhere else, so an abandoned or failed upload leaves the profile untouched. Audited (FR-43) via the member update.",
+  },
 ];
 
 /** Every registration the coverage test expects to find, as `file METHOD path`. */
