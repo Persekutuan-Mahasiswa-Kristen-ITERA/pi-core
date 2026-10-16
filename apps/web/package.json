@@ -24,10 +24,13 @@
   "devDependencies": {
     "@opennextjs/cloudflare": "^1.0.0",
     "@pi-core/config": "workspace:*",
+    "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.36.0",
+    "postcss": "^8.5.23",
+    "tailwindcss": "^4.3.3",
     "typescript": "^5.9.2",
     "wrangler": "^4.0.0"
   }
