@@ -9,3 +9,4 @@ export * from "./periods";
 export * from "./org-units";
 export * from "./roles";
 export * from "./assignments";
+export * from "./settings";

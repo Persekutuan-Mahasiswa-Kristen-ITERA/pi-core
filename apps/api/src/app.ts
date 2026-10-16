@@ -15,6 +15,7 @@ import { orgUnitRoutes } from "./routes/org-units";
 import { periodRoutes } from "./routes/periods";
 import { roleRoutes } from "./routes/roles";
 import { signInPageRoutes } from "./routes/sign-in-page";
+import { settingsRoutes } from "./routes/settings";
 
 /**
  * The PI-CORE API Worker (ADR-0013, spine AD-17).
@@ -86,6 +87,9 @@ app.route("/api/v1/roles", roleRoutes);
 
 // Assignments and the derived role (story 4.8). The rank/subtree guard runs on the way in (FR-27).
 app.route("/api/v1/assignments", assignmentRoutes);
+
+// Settings (story 4.9): allowed domains and the org profile. super_admin only (FR-42).
+app.route("/api/v1/settings", settingsRoutes);
 
 // The uniform envelope applies to the two responses Hono produces without a route (FR-51).
 app.notFound((c) => c.json(errorBody(c, "not_found"), 404));

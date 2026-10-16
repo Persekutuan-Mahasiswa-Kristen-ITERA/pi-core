@@ -7,3 +7,4 @@ export * from "./assignments";
 export * from "./rbac";
 export * from "./audit";
 export * from "./auth";
+export * from "./settings";

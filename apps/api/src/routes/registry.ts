@@ -55,7 +55,7 @@ export const ROUTE_AUTHORIZATION: readonly RouteAuthorization[] = [
     mountedAt: "/api/auth",
     public: true,
     reason:
-      "Better Auth's own handler (ADR-0007/ADR-0015): this IS the sign-in attempt, so there is no session to authorize yet. NOT YET WIRED: the allowlist (FR-3), invite-only (FR-4) and email_verified (NFR-1) checks in resolveSignIn are not called from the OAuth callback yet, so today any Google account that completes consent would get a session and a members row. That hook is the remaining work of story 3.1; until it lands, keep the OAuth consent screen in Testing mode so only listed test users can consent.",
+      "Better Auth's own handler (ADR-0007/ADR-0015): this IS the sign-in attempt, so there is no session to authorize yet. Admission is enforced by the library and by us: invite-only at the source (disableSignUp + disableImplicitSignUp, FR-4), the allowlist and email_verified through resolveSignIn, `databaseHooks.user.create.before` refusing an unknown or non-allowlisted address with one generic message (NFR-3, story 3.2), and `resolveSessionAdmission` re-checked on EVERY subsequent request (FR-3/FR-5) — so a session issued here is not a standing permission. The sign-in page (routes/sign-in-page.ts) is the same-origin entry point that makes the consent step reachable.",
   },
   {
     file: "routes/sign-in-page.ts",
@@ -316,6 +316,69 @@ export const ROUTE_AUTHORIZATION: readonly RouteAuthorization[] = [
     permission: "assignment:manage",
     reason:
       "End or transfer an assignment (FR-33) — the same row changing shape, so one endpoint. Guarded by assignment:manage, and the guard re-runs against the NEW destination: a transfer moves authority and must satisfy the same rank/subtree rule as the original placement, because checking only the old location would let an admin move someone into a unit they cannot manage. An `endsOn` before `startsOn` is refused rather than stored: the assignment would exist, look active, and grant nothing. Audited (FR-43) with the before/after window.",
+  },
+  {
+    file: "routes/settings.ts",
+    method: "GET",
+    path: "/domains",
+    mountedAt: "/api/v1/settings",
+    permission: "settings:read",
+    reason:
+      "List the allowed email domains, active and inactive (FR-40). super_admin only (FR-42) — enforced by requirePermission against the matrix, not by a role check written here, so an organization_admin cannot reach it by any route including a future one.",
+  },
+  {
+    file: "routes/settings.ts",
+    method: "POST",
+    path: "/domains",
+    mountedAt: "/api/v1/settings",
+    permission: "settings:manage",
+    reason:
+      "Add an allowed sign-in domain (FR-40). The domain is normalised and validated as a BARE HOSTNAME: a scheme, a path or an @ is refused rather than silently stripped, because a typo that grants nothing is better than one that grants something unexpected. `citext` makes ITERA.ac.id collide with itera.ac.id, which is the point of the column type, and a duplicate is a conflict rather than a 500. Audited (FR-43). No cache anywhere: the sign-in path reads this table every time, which is the cheapest way to make 'changes take effect for subsequent sign-ins' true rather than true-after-a-deploy.",
+  },
+  {
+    file: "routes/settings.ts",
+    method: "PATCH",
+    path: "/domains/:id",
+    mountedAt: "/api/v1/settings",
+    permission: "settings:manage",
+    reason:
+      "Activate, deactivate or change subdomain matching for a domain (FR-40). Domains are never deleted, only deactivated: the audit trail keeps pointing at a row that still exists, whereas a hard delete leaves the log describing a domain nobody can look up — the same information loss as not logging it. Audited (FR-43).",
+  },
+  {
+    file: "routes/settings.ts",
+    method: "GET",
+    path: "/org",
+    mountedAt: "/api/v1/settings",
+    permission: "settings:read",
+    reason:
+      "Read the organization profile (FR-41). super_admin only (FR-42). Returns a `logoUrl` pointing at our own serve route rather than a bucket URL, so nothing in a client is bound to a host we do not control.",
+  },
+  {
+    file: "routes/settings.ts",
+    method: "PATCH",
+    path: "/org",
+    mountedAt: "/api/v1/settings",
+    permission: "settings:manage",
+    reason:
+      "Set the organization name (FR-41). super_admin only (FR-42). Creates the singleton row on first write; the partial unique index is the real guarantee that there is only ever one. Audited (FR-43).",
+  },
+  {
+    file: "routes/settings.ts",
+    method: "PUT",
+    path: "/org/logo",
+    mountedAt: "/api/v1/settings",
+    permission: "settings:manage",
+    reason:
+      "Upload the logo (FR-41). super_admin only (FR-42). Deliberately NOT presigned, unlike avatars: a logo is uploaded once and capped at 512 KiB, and it is the one image whose bytes we are actually in a position to inspect — so it goes through the Worker, where detectImageType checks the MAGIC BYTES (a client can call a file anything) and stripImageMetadata removes the identifying segments (NFR-8, the same structural walk avatars use). One stable key per type, overwritten on each upload, so the old object cannot be orphaned and the serve route does not need to be told which key is current. Audited (FR-43).",
+  },
+  {
+    file: "routes/settings.ts",
+    method: "GET",
+    path: "/org/logo",
+    mountedAt: "/api/v1/settings",
+    public: true,
+    reason:
+      "PUBLIC by design: a logo is branding, not personal data, and it appears on pages before anyone has signed in. The bucket itself stays private (FR-41) and this route is the only way the bytes leave it, so the object is never world-readable. Cacheable but not immutable, because the same key is overwritten on each upload.",
   },
 ];
 
