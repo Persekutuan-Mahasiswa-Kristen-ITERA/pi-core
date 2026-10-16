@@ -7,6 +7,7 @@ import { requestIdMiddleware } from "./middleware/request-id";
 import { securityHeadersMiddleware } from "./middleware/security-headers";
 import { authRoutes } from "./routes/auth";
 import { assignmentRoutes } from "./routes/assignments";
+import { auditRoutes } from "./routes/audit";
 import { avatarRoutes } from "./routes/avatar";
 import { healthRoutes } from "./routes/health";
 import { memberRoutes } from "./routes/members";
@@ -90,6 +91,9 @@ app.route("/api/v1/assignments", assignmentRoutes);
 
 // Settings (story 4.9): allowed domains and the org profile. super_admin only (FR-42).
 app.route("/api/v1/settings", settingsRoutes);
+
+// Audit log (story 4.10). `audit:read` guards it; the O-scope requirement is enforced in the db layer.
+app.route("/api/v1/audit", auditRoutes);
 
 // The uniform envelope applies to the two responses Hono produces without a route (FR-51).
 app.notFound((c) => c.json(errorBody(c, "not_found"), 404));

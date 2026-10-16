@@ -380,6 +380,24 @@ export const ROUTE_AUTHORIZATION: readonly RouteAuthorization[] = [
     reason:
       "PUBLIC by design: a logo is branding, not personal data, and it appears on pages before anyone has signed in. The bucket itself stays private (FR-41) and this route is the only way the bytes leave it, so the object is never world-readable. Cacheable but not immutable, because the same key is overwritten on each upload.",
   },
+  {
+    file: "routes/audit.ts",
+    method: "GET",
+    path: "/actions",
+    mountedAt: "/api/v1/audit",
+    permission: "audit:read",
+    reason:
+      "The distinct actions present in the log, so a UI can offer a filter guaranteed to match something. Declared BEFORE the list route so the path cannot be swallowed as an id.",
+  },
+  {
+    file: "routes/audit.ts",
+    method: "GET",
+    path: "/",
+    mountedAt: "/api/v1/audit",
+    permission: "audit:read",
+    reason:
+      "Browse the audit log with filters (actor, action, entity, time window) and cursor pagination (FR-44). Guarded by audit:read, and additionally by a SCOPE check in the db layer: the log is org-wide and an entry has no unit relation to narrow by — the entity may not even exist any more, since the table deliberately has no foreign keys so the record outlives the member — so a U-scoped holder is REFUSED rather than shown an approximation that would leak entries about members outside their subtree. Sensitive fields are redacted AGAIN on the way out, not only on the way in (FR-13/FR-43): re-redacting is normally a no-op, and it is here so that one forgotten call at write time cannot become a permanent leak through the read path. Cursor is `(at, id)` rather than offset, because the log grows while it is being read and an offset page would shift under the reader.",
+  },
 ];
 
 /** Every registration the coverage test expects to find, as `file METHOD path`. */
