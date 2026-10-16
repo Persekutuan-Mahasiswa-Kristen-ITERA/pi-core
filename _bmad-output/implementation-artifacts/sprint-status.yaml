@@ -62,7 +62,7 @@ development_status:
   3-5-session-revocation: done
   epic-3-retrospective: optional
 
-  epic-4: in-progress
+  epic-4: done
   4-1-api-foundation-conventions-errors-validation-limits: done
   4-2-members-list-search-and-detail: done
   4-3-member-create-update-deactivate: done
@@ -77,8 +77,8 @@ development_status:
   4-12-create-edit-member-screen: done
   epic-4-retrospective: optional
 
-  epic-5: backlog
-  5-1-mobile-shell-tokens-and-components: backlog
+  epic-5: in-progress
+  5-1-mobile-shell-tokens-and-components: done
   5-2-mobile-auth-screens: backlog
   5-3-mobile-core-screens: backlog
   5-4-mobile-states-a11y-and-fidelity-check: backlog

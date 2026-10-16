@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "main": "index.js",
-  "description": "PI-CORE mobile app (Expo) — sign-in first; screens arrive in Epic 5.",
+  "description": "PI-CORE mobile app (Expo) — mobile shell and Google sign-in.",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
