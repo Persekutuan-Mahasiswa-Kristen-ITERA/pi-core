@@ -1,3 +1,5 @@
+import { MemberSheet } from "./member-sheet";
+
 const navItems = [
   ["⌂", "Dashboard"],
   ["♙", "Anggota"],
@@ -73,7 +75,7 @@ export default function HomePage() {
         <main className="content">
           <section className="page-heading" aria-labelledby="page-title">
             <div><p className="eyebrow">Admin Portal</p><h1 id="page-title">Shalom, Admin!</h1><p className="subtitle">Pantau dan kelola organisasi PMK ITERA dari satu tempat.</p></div>
-            <a className="button" href="#anggota">+ Tambah Anggota</a>
+            <MemberSheet />
           </section>
           <section className="stats" aria-label="Statistik organisasi">
             <StatCard label="TOTAL ANGGOTA" value="128" meta="↑ 5% dari periode lalu" />
@@ -83,7 +85,7 @@ export default function HomePage() {
           <section className="grid" aria-label="Ringkasan aktivitas">
             <article className="card">
               <div className="card-heading"><h2>Anggota terbaru</h2><a className="text-link" href="#anggota">Lihat semua →</a></div>
-              <div className="table-wrap"><table><caption className="sr-only">Daftar anggota terbaru</caption><thead><tr><th scope="col">Nama</th><th scope="col">Peran</th><th scope="col">Status</th></tr></thead><tbody>{members.map(([name, role, status]) => <tr key={name}><td><strong>{name}</strong></td><td>{role}</td><td><span className="status">{status}</span></td></tr>)}</tbody></table></div>
+              <div className="table-wrap"><table><caption className="sr-only">Daftar anggota terbaru</caption><thead><tr><th scope="col">Nama</th><th scope="col">Peran</th><th scope="col">Status</th><th scope="col">Aksi</th></tr></thead><tbody>{members.map(([name, role, status]) => <tr key={name}><td><strong>{name}</strong></td><td>{role}</td><td><span className="status">{status}</span></td><td><MemberSheet mode="edit" initialValues={{ fullName: name, email: "anggota@itera.ac.id", nim: "", faculty: "", studyProgram: "", cohortYear: "", phone: "" }} /></td></tr>)}</tbody></table></div>
             </article>
             <article className="card"><div className="card-heading"><h2>Akses cepat</h2></div><div style={{ display: "grid", gap: 10 }}><a className="button button-secondary" href="#anggota">Kelola Anggota</a><a className="button button-secondary" href="#penugasan">Buat Penugasan</a><a className="button button-secondary" href="#periode">Atur Periode</a></div></article>
           </section>
