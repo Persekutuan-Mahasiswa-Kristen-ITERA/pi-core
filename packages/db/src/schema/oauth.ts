@@ -5,6 +5,7 @@ import { members } from "./members";
 export const oauthClients = pgTable(
   "oauth_clients",
   {
+    id: uuid("id").defaultRandom().notNull().unique(),
     clientId: text("client_id").primaryKey(),
     clientSecret: text("client_secret"),
     disabled: boolean("disabled").notNull().default(false),
