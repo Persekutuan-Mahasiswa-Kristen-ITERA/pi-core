@@ -196,6 +196,9 @@ export function createAuth(db: Database, env: Env): AuthInstance {
       oauthProvider({
         loginPage: "/sign-in",
         consentPage: "/consent",
+        // Keep the resource audience explicit because Better Auth's internal baseURL
+        // includes its auth base path while PI-CORE's protected API is served at the origin.
+        validAudiences: [env.BETTER_AUTH_URL.replace(/\/$/, ""), `${env.BETTER_AUTH_URL.replace(/\/$/, "")}/api/auth`],
         scopes: ["openid", "profile", "email", "pmk:access"],
         grantTypes: ["authorization_code", "refresh_token"],
         clientPrivileges: async ({ action, user }) => {
