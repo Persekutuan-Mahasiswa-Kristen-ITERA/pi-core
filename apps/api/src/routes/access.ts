@@ -21,7 +21,7 @@ function bearerToken(c: Context<AppEnv>): string {
 
 accessRoutes.get("/access", accessRateLimit, async (c) => {
   const token = bearerToken(c);
-  const issuer = c.env.BETTER_AUTH_URL.replace(/\/$/, "");
+  const issuer = `${c.env.BETTER_AUTH_URL.replace(/\/$/, "")}/api/auth`;
   const audience = issuer;
   let claims: Record<string, unknown>;
   try {
