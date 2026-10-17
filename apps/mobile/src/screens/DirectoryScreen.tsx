@@ -1,6 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
+import { ScreenState } from "../components/ScreenState";
+import { checkApiHealth } from "../api/client";
 import { tokens } from "../theme/tokens";
 
 type DirectoryTab = "Members" | "Roles" | "Periods";
@@ -15,10 +17,9 @@ const members: Member[] = [
   { name: "Samuel Sinaga", role: "Anggota", period: "2026/2027" },
 ];
 
-export function DirectoryScreen() {
+export function DirectoryScreen({ canManage = true }: { canManage?: boolean }) {
   const [tab, setTab] = useState<DirectoryTab>("Members");
-  const [viewState, setViewState] = useState<"ready" | "loading" | "error" | "forbidden" | "offline">("ready");
-  const [canManage, setCanManage] = useState(true);
+  const [viewState, setViewState] = useState<"ready" | "loading" | "error" | "forbidden" | "offline">("loading");
   const [query, setQuery] = useState("");
   const [period, setPeriod] = useState("2026/2027");
   const [roleFilter, setRoleFilter] = useState("Semua");
@@ -30,30 +31,34 @@ export function DirectoryScreen() {
     return matchesQuery && matchesPeriod && matchesRole;
   }), [period, query, roleFilter]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    void checkApiHealth(controller.signal).then(() => setViewState("ready")).catch((error: unknown) => {
+      if (error instanceof Error && error.name === "AbortError") return;
+      setViewState(error instanceof Error && error.name === "ApiHealthError" ? "error" : "offline");
+    }).finally(() => clearTimeout(timeout));
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, []);
+
+  function retryHealthCheck() {
+    setViewState("loading");
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    void checkApiHealth(controller.signal).then(() => setViewState("ready")).catch((error: unknown) => {
+      if (!(error instanceof Error && error.name === "AbortError")) setViewState("offline");
+    }).finally(() => clearTimeout(timeout));
+  }
+
   if (viewState !== "ready") {
-    const stateCopy = {
-      loading: ["Memuat anggota…", "Data directory sedang dimuat."],
-      error: ["Data belum tersedia", "Terjadi kendala saat mengambil data anggota."],
-      forbidden: ["Akses ditolak", "Anda tidak memiliki izin untuk melihat directory."],
-      offline: ["Tidak ada koneksi", "Periksa koneksi internet lalu coba lagi."],
-    } as const;
-    const [title, body] = stateCopy[viewState];
-    return (
-      <View style={styles.statePanel}>
-        <Text style={styles.placeholderTitle}>{title}</Text>
-        <Text style={styles.placeholderBody}>{body}</Text>
-        {viewState !== "loading" ? <Pressable accessibilityRole="button" onPress={() => setViewState("ready")} style={styles.retryButton}><Text style={styles.retryText}>Coba lagi</Text></Pressable> : null}
-      </View>
-    );
+    return <ScreenState kind={viewState} onRetry={retryHealthCheck} />;
   }
 
   return (
     <ScrollView contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
-      <View style={styles.demoStateRow}>
-        <Text style={styles.demoLabel}>Demo state:</Text>
-        {(["ready", "loading", "error", "forbidden", "offline"] as const).map((state) => <Pressable accessibilityLabel={`State ${state}`} key={state} onPress={() => setViewState(state)}><Text style={styles.demoState}>{state}</Text></Pressable>)}
-      </View>
-      <Pressable accessibilityRole="button" onPress={() => setCanManage(!canManage)} style={styles.permissionToggle}><Text style={styles.filterText}>Permission manage: {canManage ? "allowed" : "forbidden"}</Text></Pressable>
       <View style={styles.tabs} accessibilityRole="tablist">
         {(["Members", "Roles", "Periods"] as DirectoryTab[]).map((item) => (
           <Pressable
@@ -82,10 +87,10 @@ export function DirectoryScreen() {
             />
           </View>
           <View style={styles.filterRow}>
-            <Pressable accessibilityRole="button" onPress={() => setPeriod(period === "2026/2027" ? "Semua" : "2026/2027")} style={styles.filterChip}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Filter periode, saat ini ${period}`} accessibilityHint="Ketuk untuk mengganti filter periode" onPress={() => setPeriod(period === "2026/2027" ? "Semua" : "2026/2027")} style={styles.filterChip}>
               <Text style={styles.filterText}>Periode: {period}</Text>
             </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => setRoleFilter(roleFilter === "Semua" ? "Staff" : "Semua")} style={styles.filterChip}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Filter peran, saat ini ${roleFilter}`} accessibilityHint="Ketuk untuk mengganti filter peran" onPress={() => setRoleFilter(roleFilter === "Semua" ? "Staff" : "Semua")} style={styles.filterChip}>
               <Text style={styles.filterText}>Peran: {roleFilter}</Text>
             </Pressable>
           </View>
@@ -110,8 +115,10 @@ export function DirectoryScreen() {
                   <Text style={styles.memberMeta}>{member.role} · {member.period}</Text>
                 </View>
                 <View style={styles.actions}>
-                  <Pressable accessibilityLabel={`Ubah ${member.name}`} hitSlop={8} onPress={() => undefined} style={styles.actionButton}><Text style={styles.actionText}>✎</Text></Pressable>
-                  <Pressable accessibilityLabel={`Nonaktifkan ${member.name}`} hitSlop={8} onPress={() => undefined} style={styles.actionButton}><Text style={styles.deleteText}>×</Text></Pressable>
+                  {canManage ? <>
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Ubah ${member.name}`} accessibilityHint="Membuka formulir ubah anggota" hitSlop={8} onPress={() => undefined} style={styles.actionButton}><Text style={styles.actionText}>✎</Text></Pressable>
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Nonaktifkan ${member.name}`} accessibilityHint="Memulai konfirmasi nonaktifkan anggota" hitSlop={8} onPress={() => undefined} style={styles.actionButton}><Text style={styles.deleteText}>×</Text></Pressable>
+                  </> : null}
                 </View>
               </View>
             ))}

@@ -5,11 +5,12 @@ Single source of truth for "where are we". Keep it short and factual. Never writ
 ## Current
 - **Mode:** BMAD   <!-- BMAD | PHASES (fallback) -->
 - **BMAD version / install status:** installed — **6.12.3** (core + bmm, built-in) + bmb v2.2.2, cis v0.3.2, tea v1.27.2 (external); installed 2026-10-14; `ides: [hermes, pi]`; output `_bmad-output/`
-- **BMAD stage / current step:** Stage 1 (planning) **complete**; **Stage 2 (delivery)** — Epic 1, Epic 2, Epic 3 and Epic 4 complete; Epic 5 stories 5.1–5.3 complete.
-- **Current phase/epic:** **Epic 5 (Mobile App) — 3/4 done**; shell, Google-only auth, and Directory/Members core screen implemented. Overall verified progress: **33/47 stories (70%)**.
-- **BMAD sprint/story status file path:** `_bmad-output/implementation-artifacts/sprint-status.yaml` (8 epics / 46 stories; `epic-1`…`epic-4` done, `epic-5` in-progress, `5-1`…`5-3` done)
+- **BMAD stage / current step:** Stage 1 (planning) **complete**; **Stage 2 (delivery)** — Epic 1, Epic 2, Epic 3, Epic 4, and Epic 5 complete.
+- **Current phase/epic:** **Epic 5 (Mobile App) — 4/4 done**; shell, Google-only auth, Directory/Members core screen, reusable states, accessibility labels, and staging health check implemented. Overall verified progress: **34/47 stories (72%)**.
+- **BMAD sprint/story status file path:** `_bmad-output/implementation-artifacts/sprint-status.yaml` (8 epics / 46 stories; `epic-1`…`epic-5` done, `5-1`…`5-4` done)
+- **Next step:** owner review of Phase 4 mobile work. After `lanjutkan`, begin Epic 6 / Story 6.1 (OIDC provider discovery, JWKS, PKCE).
 - **Status:** awaiting owner review   <!-- not started | in progress | blocked | awaiting owner review | done -->
-- **Last updated:** 2026-10-16, by Hermes (implementation agent)
+- **Last updated:** 2026-10-17, by Hermes (implementation agent)
 
 ## Done (verified)
 - **Stage 0 — BMAD install verified.** `_bmad/_config/manifest.yaml` → `installation.version: 6.12.3`, `installDate 2026-10-14`, modules core+bmm (built-in) and bmb/cis/tea (external), `ides: [hermes, pi]`. 54 `bmad-*` skill dirs + 5 kit skills, no overwrite.
@@ -142,6 +143,8 @@ Workers Free.** Before Epic 4 builds the UI on this, we need a decision (see *In
 - 2026-10-15: standing instruction — **"lakukan semuanya secara gratis dahulu"**: every provider stays on a free tier, no upgrades/overages without approval (→ ADR-0014).
 
 ## Session notes (newest first)
+- **2026-10-17 (Hermes):** **Story 5.4 done.** Added reusable `ScreenState` for loading, error, forbidden, and offline states with retry; Directory now performs a staging `/api/v1/health` check and distinguishes offline from server error. Removed nested Directory `ScrollView`, added screen-reader labels/hints and permission-gated mutation controls, and verified touch targets. Fidelity review against Figma Members node `82:508` recorded deviations D6 (static prototype data/API health boundary) and D7 (text glyph fallback for action icons). Verified: staging health HTTP 200, mobile typecheck pass, lint pass, Android Expo SDK 57 export pass (1.5 MB), `git diff --check` pass.
+
 - **2026-10-16 (Hermes), session 48:** **Story 5.3 done.** Added the mobile Directory/Members core screen based on verified Figma node `82:508`: Members/Roles/Periods tabs, member search, period and role filters, create-member action, member rows with edit/deactivate affordances, empty results, forbidden banner, and demoable loading/error/forbidden/offline states. Connected Directory to the bottom navigation and drawer. Verified: mobile typecheck pass, lint pass, Android Expo SDK 57 export pass (bundle 1.5 MB), `git diff --check` pass. Data is currently prototype data; API wiring is deferred to the mobile API integration pass.
 
 - **2026-10-16 (Hermes), session 47:** **Expo SDK upgrade complete.** Upgraded `apps/mobile` from SDK 54 to SDK 57 to match the installed Expo Go 57.0.9: Expo 57.0.30, React Native 0.86.3, React 19.2.3, and SDK-compatible Expo modules. A workspace type portability regression caused by React type resolution was fixed with explicit JSX return annotations in the affected web components and aligned web React type packages. Verified: mobile typecheck/lint, full workspace typecheck, lint (0 errors; existing warnings only), tests (`packages/shared` 96/96 and `apps/api` 40/40), and Android Metro export (bundle 1.5 MB). Project is ready for Expo Go 57 device testing, pending the dev server/QR session.

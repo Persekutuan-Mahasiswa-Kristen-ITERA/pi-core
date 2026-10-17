@@ -76,9 +76,13 @@ export default function App() {
           </Pressable>
         </View>
 
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          {activeTab === "home" ? <Dashboard /> : activeTab === "directory" ? <DirectoryScreen /> : <PlaceholderScreen title={tabLabels[activeTab]} />}
-        </ScrollView>
+        {activeTab === "directory" ? (
+          <DirectoryScreen />
+        ) : (
+          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+            {activeTab === "home" ? <Dashboard /> : <PlaceholderScreen title={tabLabels[activeTab]} />}
+          </ScrollView>
+        )}
 
         <View accessibilityLabel="Navigasi utama" style={styles.bottomNav}>
           {(Object.keys(tabLabels) as AppTab[]).map((tab) => (

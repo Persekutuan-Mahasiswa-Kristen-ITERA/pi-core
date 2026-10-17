@@ -89,6 +89,9 @@ The prototype has no Create/Edit Member screen (`88:612` is empty). Owner approv
 - **D4 — Dashboard stats.** Replace ambiguous "14 Mo" and arbitrary deltas with: Total Members, Active Period (label + dates), Available Roles, with deltas shown only if real historical data exists.
 - **D5 — Language (updated 2026-10-15, ADR-0006).** Default locale is **Bahasa Indonesia**; all strings go through i18n so English can be selected. Figma's English labels remain the source text for layout reference. Fix prototype typos ("Posiion", "Connnected").
 
+- **D6 — Mobile Story 5.4 states and prototype data (2026-10-17):** Directory uses a real staging API health check to distinguish loading, offline, and server-error states, but member rows remain static until the authenticated mobile members adapter is implemented. CRUD callbacks are intentionally non-persistent. This preserves the prototype boundary and avoids implying that mobile mutations are wired.
+- **D7 — Directory icon fallback (2026-10-17):** Directory action icons currently use existing text glyphs (`✎`, `×`) rather than a new icon asset. Their 40px buttons plus `hitSlop` meet the 44px touch-target intent; replace glyphs with the shared icon set when the mobile icon mapping is expanded.
+
 Any further deviation: record it here (ID, reason, date) and mention it in the task report.
 
 ## Desktop admin website (no Figma exists) — design rule
