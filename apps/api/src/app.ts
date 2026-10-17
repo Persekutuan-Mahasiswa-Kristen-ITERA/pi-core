@@ -8,6 +8,7 @@ import { securityHeadersMiddleware } from "./middleware/security-headers";
 import { authRoutes } from "./routes/auth";
 import { assignmentRoutes } from "./routes/assignments";
 import { accessRoutes } from "./routes/access";
+import { consentPageRoutes } from "./routes/consent-page";
 import { auditRoutes } from "./routes/audit";
 import { avatarRoutes } from "./routes/avatar";
 import { healthRoutes } from "./routes/health";
@@ -72,6 +73,7 @@ app.route("/api/auth", authRoutes);
 
 // Minimal same-origin sign-in page — a staging placeholder for the Epic 4 UI (see the file header).
 app.route("/sign-in", signInPageRoutes);
+app.route("/consent", consentPageRoutes);
 
 // Mobile hand-off (story 3.3): the system browser returns here, the app exchanges the code for a token.
 app.route("/api/v1/auth/mobile", mobileAuthRoutes);

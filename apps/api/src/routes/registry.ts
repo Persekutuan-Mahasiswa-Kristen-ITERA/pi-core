@@ -88,6 +88,15 @@ export const ROUTE_AUTHORIZATION: readonly RouteAuthorization[] = [
       "Minimal same-origin sign-in page, a staging placeholder for the Epic 4 UI. Public because a sign-in page must be reachable without a session. It shows the session it obtained (member id + effective roles) as the end-to-end proof of the chain; it exposes nothing that get-session does not already expose to the cookie holder.",
   },
   {
+    file: "routes/consent-page.ts",
+    method: "GET",
+    path: "/",
+    mountedAt: "/consent",
+    public: true,
+    reason:
+      "OAuth consent UI is reached only after Better Auth has created a same-origin session and signed the OAuth query. The POST decision is handled by Better Auth's protected oauth2Consent endpoint, which revalidates the session, signed query and requested scopes before issuing or denying a code.",
+  },
+  {
     file: "routes/mobile-auth.ts",
     method: "GET",
     path: "/finish",
