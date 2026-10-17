@@ -21,10 +21,10 @@ function bearerToken(c: Context<AppEnv>): string {
 
 accessRoutes.get("/access", accessRateLimit, async (c) => {
   const token = bearerToken(c);
-  // Better Auth signs JWTs with the configured baseURL as `iss` and `aud`.
-  // Its protocol endpoints (including JWKS) are mounted below /api/auth.
+  // Better Auth signs JWTs with the JWT plugin issuer under /api/auth.
+  // The protected resource audience remains the API origin.
   const authBaseUrl = c.env.BETTER_AUTH_URL.replace(/\/$/, "");
-  const issuer = authBaseUrl;
+  const issuer = `${authBaseUrl}/api/auth`;
   const audience = authBaseUrl;
   let claims: Record<string, unknown>;
   try {
