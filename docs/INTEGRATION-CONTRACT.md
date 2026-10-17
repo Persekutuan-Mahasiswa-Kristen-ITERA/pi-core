@@ -56,6 +56,7 @@ const tokenResponse = await fetch(discovery.token_endpoint, {
     code,
     redirect_uri: redirectUri,
     code_verifier: codeVerifier,
+    resource: discovery.issuer, // RFC 8707: Requests a JWT access token bound to PI-CORE resource audience
   }),
 });
 ```

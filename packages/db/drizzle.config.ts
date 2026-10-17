@@ -9,7 +9,8 @@ import { defineConfig } from "drizzle-kit";
  * the Worker (the Worker reaches Postgres through Hyperdrive). Values live in
  * `packages/db/.env`, which is gitignored.
  */
-const directUrl = process.env.DIRECT_URL ?? process.env.DIRECT_DATABASE_URL ?? "";
+const directUrl =
+  process.env.DIRECT_URL ?? process.env.DIRECT_DATABASE_URL ?? "";
 
 export default defineConfig({
   schema: "./src/schema/index.ts",

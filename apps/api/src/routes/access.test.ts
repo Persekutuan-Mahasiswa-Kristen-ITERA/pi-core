@@ -13,16 +13,26 @@ const env = {
 };
 
 describe("/api/v1/access bearer boundary", () => {
-  it.each([undefined, "", "Basic abc", "Bearer", "Bearer "])('rejects %j', (header) => {
-    expect(() => extractBearerToken(header)).toThrow("Bearer access token required.");
-  });
+  it.each([undefined, "", "Basic abc", "Bearer", "Bearer "])(
+    "rejects %j",
+    (header) => {
+      expect(() => extractBearerToken(header)).toThrow(
+        "Bearer access token required.",
+      );
+    },
+  );
 
   it("extracts a bearer token without normalizing its value", () => {
-    expect(extractBearerToken("bEaReR opaque-token.value")).toBe("opaque-token.value");
+    expect(extractBearerToken("bEaReR opaque-token.value")).toBe(
+      "opaque-token.value",
+    );
   });
 
   it("returns the standard unauthorized envelope when the header is missing", async () => {
-    const response = await app.fetch(new Request("https://api.example.test/api/v1/access"), env);
+    const response = await app.fetch(
+      new Request("https://api.example.test/api/v1/access"),
+      env,
+    );
     expect(response.status).toBe(401);
     expect(response.headers.get("cache-control")).toBeNull();
     await expect(response.json()).resolves.toMatchObject({
@@ -32,12 +42,17 @@ describe("/api/v1/access bearer boundary", () => {
 
   it("rejects a malformed bearer token before opening the database", async () => {
     const response = await app.fetch(
-      new Request("https://api.example.test/api/v1/access", { headers: { authorization: "Bearer not-a-jwt" } }),
+      new Request("https://api.example.test/api/v1/access", {
+        headers: { authorization: "Bearer not-a-jwt" },
+      }),
       env,
     );
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toMatchObject({
-      error: { code: "unauthorized", message: "Invalid or expired access token." },
+      error: {
+        code: "unauthorized",
+        message: "Invalid or expired access token.",
+      },
     });
   });
 });
