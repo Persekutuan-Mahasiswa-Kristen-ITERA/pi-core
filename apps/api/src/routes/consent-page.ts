@@ -39,9 +39,39 @@ function page(body: string): string {
   .allow { background:#5A3E1B; color:#fff; }
   .deny { border:1px solid rgba(161,89,18,.2); background:#fff; color:#5A3E1B; }
   .note { margin-top:20px; padding-top:16px; border-top:1px solid #E2E1DF; color:#64748B; font-size:12px; }
+  .error { margin-top:16px; padding:10px 12px; border:1px solid #E11D48; border-radius:8px; color:#E11D48; font-size:13px; }
 </style>
 </head>
-<body><main>${body}</main></body>
+<body><main>${body}</main>
+<script>
+for (const form of document.querySelectorAll('form[data-consent]')) {
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const button = form.querySelector('button');
+    if (button) { button.disabled = true; button.textContent = 'Memproses…'; }
+    const data = new FormData(form);
+    try {
+      const response = await fetch(form.action, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json', 'accept': 'application/json' },
+        body: JSON.stringify({ accept: data.get('accept') === 'true', oauth_query: data.get('oauth_query') }),
+      });
+      const result = await response.json();
+      if (response.ok && typeof result.redirect_uri === 'string') { window.location.assign(result.redirect_uri); return; }
+      throw new Error(result.error_description || result.message || 'Persetujuan gagal diproses.');
+    } catch (error) {
+      const message = document.createElement('div');
+      message.className = 'error';
+      message.setAttribute('role', 'alert');
+      message.textContent = error instanceof Error ? error.message : 'Persetujuan gagal diproses.';
+      form.parentElement.appendChild(message);
+      if (button) { button.disabled = false; button.textContent = button.dataset.label || 'Coba lagi'; }
+    }
+  });
+}
+</script>
+</body>
 </html>`;
 }
 
@@ -59,7 +89,7 @@ consentPageRoutes.get("/", async (c) => {
     ? requestedScopes.map((scope) => `<li>${escapeHtml(scope)}</li>`).join("")
     : "<li>Akses dasar OIDC</li>";
   const encodedQuery = escapeHtml(oauthQuery);
-  const form = (accept: boolean, label: string, className: string) => `<form method="post" action="/api/auth/oauth2/consent"><input type="hidden" name="accept" value="${accept ? "true" : "false"}"><input type="hidden" name="oauth_query" value="${encodedQuery}"><button class="${className}" type="submit">${label}</button></form>`;
+  const form = (accept: boolean, label: string, className: string) => `<form data-consent method="post" action="/api/auth/oauth2/consent"><input type="hidden" name="accept" value="${accept ? "true" : "false"}"><input type="hidden" name="oauth_query" value="${encodedQuery}"><button class="${className}" data-label="${label}" type="submit">${label}</button></form>`;
 
   return c.html(page(`
     <h1>Persetujuan akses</h1>

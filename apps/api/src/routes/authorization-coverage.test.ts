@@ -37,6 +37,8 @@ const NON_ROUTE_CALLS: readonly string[] = [
   "routes/consent-page.ts GET client_id",
   "routes/consent-page.ts GET scope",
   "routes/consent-page.ts GET db",
+  "routes/consent-page.ts GET accept",
+  "routes/consent-page.ts GET oauth_query",
   "routes/mobile-auth.ts GET db",
   "routes/mobile-auth.ts GET actor",
   "routes/mobile-auth.ts GET requestId",
