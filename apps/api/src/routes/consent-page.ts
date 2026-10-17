@@ -55,11 +55,14 @@ for (const form of document.querySelectorAll('form[data-consent]')) {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'content-type': 'application/json', 'accept': 'application/json' },
-        body: JSON.stringify({ accept: data.get('accept') === 'true', oauth_query: data.get('oauth_query') }),
+        body: JSON.stringify({ accept: data.get('accept') === 'true', scope: data.get('scope'), oauth_query: data.get('oauth_query') }),
       });
-      const result = await response.json();
-      if (response.ok && typeof result.redirect_uri === 'string') { window.location.assign(result.redirect_uri); return; }
-      throw new Error(result.error_description || result.message || 'Persetujuan gagal diproses.');
+      const raw = await response.text();
+      let result;
+      try { result = JSON.parse(raw); } catch { result = {}; }
+      if (response.ok && typeof result.redirect_uri === 'string' && result.redirect_uri.length > 0) { window.location.assign(result.redirect_uri); return; }
+      const description = typeof result.error_description === 'string' ? result.error_description : typeof result.message === 'string' ? result.message : 'Server mengembalikan HTTP ' + response.status + '.';
+      throw new Error(description);
     } catch (error) {
       const message = document.createElement('div');
       message.className = 'error';
@@ -89,7 +92,7 @@ consentPageRoutes.get("/", async (c) => {
     ? requestedScopes.map((scope) => `<li>${escapeHtml(scope)}</li>`).join("")
     : "<li>Akses dasar OIDC</li>";
   const encodedQuery = escapeHtml(oauthQuery);
-  const form = (accept: boolean, label: string, className: string) => `<form data-consent method="post" action="/api/auth/oauth2/consent"><input type="hidden" name="accept" value="${accept ? "true" : "false"}"><input type="hidden" name="oauth_query" value="${encodedQuery}"><button class="${className}" data-label="${label}" type="submit">${label}</button></form>`;
+  const form = (accept: boolean, label: string, className: string) => `<form data-consent method="post" action="/api/auth/oauth2/consent"><input type="hidden" name="accept" value="${accept ? "true" : "false"}"><input type="hidden" name="scope" value="${escapeHtml(requestedScopes.join(" "))}"><input type="hidden" name="oauth_query" value="${encodedQuery}"><button class="${className}" data-label="${label}" type="submit">${label}</button></form>`;
 
   return c.html(page(`
     <h1>Persetujuan akses</h1>
