@@ -14,6 +14,7 @@ import { loadSession, MobileSignInError, signInWithGoogle, signOut, type SignedI
 import { AppIcon } from "./src/components/AppIcon";
 import { AuthScreen } from "./src/auth/AuthScreen";
 import { DirectoryScreen } from "./src/screens/DirectoryScreen";
+import { IntegrationsScreen } from "./src/screens/IntegrationsScreen";
 
 import { tokens, type AppTab, tabLabels } from "./src/theme/tokens"
 
@@ -29,6 +30,7 @@ const drawerItems = ["Dashboard", "Members", "Roles", "Periods", "Assignments", 
 export default function App() {
   const [auth, setAuth] = useState<AuthState>({ kind: "checking" });
   const [activeTab, setActiveTab] = useState<AppTab>("home");
+  const [activeScreen, setActiveScreen] = useState<"tab" | "integrations">("tab");
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
@@ -70,17 +72,23 @@ export default function App() {
           <Pressable accessibilityLabel="Buka menu" hitSlop={10} onPress={() => setDrawerOpen(true)} style={styles.iconButton}>
             <AppIcon name="menu" />
           </Pressable>
-          <Text style={styles.headerTitle}>{activeTab === "home" ? "Dashboard" : tabLabels[activeTab]}</Text>
+          <Text style={styles.headerTitle}>{activeScreen === "integrations" ? "Integrations" : activeTab === "home" ? "Dashboard" : tabLabels[activeTab]}</Text>
           <Pressable accessibilityLabel="Notifikasi" hitSlop={10} onPress={() => undefined} style={styles.iconButton}>
             <AppIcon name="bell" />
           </Pressable>
         </View>
 
-        {activeTab === "directory" ? (
+        {activeScreen === "integrations" ? (
+          <IntegrationsScreen />
+        ) : activeTab === "directory" ? (
           <DirectoryScreen />
+        ) : activeTab === "home" ? (
+          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+            <Dashboard />
+          </ScrollView>
         ) : (
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-            {activeTab === "home" ? <Dashboard /> : <PlaceholderScreen title={tabLabels[activeTab]} />}
+            <PlaceholderScreen title={tabLabels[activeTab]} />
           </ScrollView>
         )}
 
@@ -91,7 +99,7 @@ export default function App() {
               accessibilityRole="tab"
               accessibilityState={{ selected: activeTab === tab }}
               key={tab}
-              onPress={() => setActiveTab(tab)}
+              onPress={() => { setActiveScreen("tab"); setActiveTab(tab); }}
               style={styles.navItem}
             >
               <AppIcon name={tab} active={activeTab === tab} />
@@ -116,8 +124,9 @@ export default function App() {
                 key={item}
                 onPress={() => {
                   setDrawerOpen(false);
-                  if (index === 0) setActiveTab("home");
-                  if (index === 1) setActiveTab("directory");
+                  if (index === 0) { setActiveScreen("tab"); setActiveTab("home"); }
+                  if (index === 1) { setActiveScreen("tab"); setActiveTab("directory"); }
+                  if (index === 5) setActiveScreen("integrations");
                 }}
                 style={[styles.drawerItem, index === 0 && styles.drawerItemActive]}
               >

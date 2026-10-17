@@ -125,8 +125,7 @@ Rules: deny by default. Permissions are checked server-side through one function
 - Subdomain apps (`*.pmkitera.web.id`) each register as an `integration`. Shared cookies across subdomains are NOT used; each app keeps its own session after OIDC login.
 - The ID token stays small (`sub`, `email`, `name`). Authorization data comes from `GET /api/v1/access` (Bearer access token) returning active period, assignments, roles and permission keys.
   Consumers cache briefly and never trust client-supplied roles.
-- **"Connected" status (owner did not know the meaning) [Proposed]:** `Connected` = integration enabled AND at least one successful authorization within a configurable window;
-  `Not connected` = not registered, disabled, or never used. Detail view shows client id, redirect URIs, scopes, last authorized. Confirm with the owner when PI-NEXUS integration starts.
+- **"Connected" status:** `Connected` = integration enabled AND at least one OAuth access token issued within the rolling 30-day window; `Not connected` = enabled but never authorized in that window; `Disabled` = registration is disabled. The registry reads `oauth_access_tokens.created_at` as durable evidence of successful authorization. Detail data includes client id, redirect URIs, scopes and last authorized. See `docs/INTEGRATION-CONTRACT.md`.
 
 ## 7. API conventions [Proposed]
 `/api/v1/...` REST+JSON. zod request/response schemas shared via `packages/shared`. Uniform error body `{ error: { code, message, details?, requestId } }`.

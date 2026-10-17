@@ -1,4 +1,5 @@
 import { MemberSheet } from "./member-sheet";
+import { IntegrationsPanel } from "./integrations";
 import type { JSX } from "react";
 
 const navItems = [
@@ -91,6 +92,7 @@ export default function HomePage(): JSX.Element {
             <article className="card"><div className="card-heading"><h2>Akses cepat</h2></div><div style={{ display: "grid", gap: 10 }}><a className="button button-secondary" href="#anggota">Kelola Anggota</a><a className="button button-secondary" href="#penugasan">Buat Penugasan</a><a className="button button-secondary" href="#periode">Atur Periode</a></div></article>
           </section>
           <section className="card" style={{ marginTop: 24 }} aria-labelledby="activity-title"><div className="card-heading"><h2 id="activity-title">Aktivitas terakhir</h2><a className="text-link" href="#audit-log">Buka audit log →</a></div><ul className="activity-list"><li className="activity"><span className="activity-dot" aria-hidden="true" /><div><p><strong>Maria Simanjuntak</strong> ditambahkan sebagai anggota baru.</p><time>Hari ini, 09:42</time></div></li><li className="activity"><span className="activity-dot" aria-hidden="true" /><div><p><strong>Periode 2026/2027</strong> diaktifkan.</p><time>Kemarin, 16:20</time></div></li></ul></section>
+          <section className="card" style={{ marginTop: 24 }} id="integrations"><IntegrationsPanel apiBaseUrl={process.env.NEXT_PUBLIC_API_URL ?? "https://pi-core-api-staging.pmkitera.workers.dev"} /></section>
           <details style={{ marginTop: 24 }}><summary style={{ cursor: "pointer", color: "var(--color-muted)" }}>Preview state components (QA)</summary><div className="grid" style={{ marginTop: 12 }}><LoadingState /><EmptyState /><ErrorState /></div></details>
         </main>
       </div>

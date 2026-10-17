@@ -1,5 +1,5 @@
-import { oauthClients, writeAudit } from "@pi-core/db";
-import { eq } from "drizzle-orm";
+import { oauthAccessTokens, oauthClients, writeAudit } from "@pi-core/db";
+import { desc, eq } from "drizzle-orm";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -8,6 +8,7 @@ import { conflict, notFound } from "../http/errors";
 import { parseJson } from "../http/validate";
 import { requirePermission } from "../middleware/authorization";
 import { sessionMiddleware } from "../middleware/session";
+import { getIntegrationConnectionStatus } from "./integration-status";
 
 export const integrationRoutes = new Hono<AppEnv>();
 integrationRoutes.use("*", sessionMiddleware);
@@ -84,18 +85,29 @@ integrationRoutes.get("/", requirePermission("integration:read"), async (c) => {
   const db = c.get("db");
   if (db === undefined) throw notFound();
   const clients = await db.select().from(oauthClients);
-  return c.json({
-    items: clients.map((client) => ({
-      clientId: client.clientId,
-      name: client.name,
-      redirectUris: client.redirectUris,
-      scopes: client.scopes,
-      enabled: !client.disabled,
-      status: client.disabled === true ? "disabled" : "not_connected",
-      createdAt: client.createdAt,
-      updatedAt: client.updatedAt,
-    })),
-  });
+  const items = await Promise.all(
+    clients.map(async (client) => {
+      const latestAuthorization = await db
+        .select({ createdAt: oauthAccessTokens.createdAt })
+        .from(oauthAccessTokens)
+        .where(eq(oauthAccessTokens.clientId, client.clientId))
+        .orderBy(desc(oauthAccessTokens.createdAt))
+        .limit(1);
+      const lastAuthorizedAt = latestAuthorization[0]?.createdAt ?? null;
+      return {
+        clientId: client.clientId,
+        name: client.name,
+        redirectUris: client.redirectUris,
+        scopes: client.scopes,
+        enabled: !client.disabled,
+        status: getIntegrationConnectionStatus(client.disabled === true, lastAuthorizedAt, new Date()),
+        lastAuthorizedAt,
+        createdAt: client.createdAt,
+        updatedAt: client.updatedAt,
+      };
+    }),
+  );
+  return c.json({ items, connectedWindowDays: 30 });
 });
 
 integrationRoutes.post("/", requirePermission("integration:manage"), async (c) => {
