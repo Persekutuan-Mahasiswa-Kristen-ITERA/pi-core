@@ -21,9 +21,10 @@ function bearerToken(c: Context<AppEnv>): string {
 
 accessRoutes.get("/access", accessRateLimit, async (c) => {
   const token = bearerToken(c);
-  const issuer = `${c.env.BETTER_AUTH_URL.replace(/\/$/, "")}/api/auth`;
-  // Better Auth uses its baseURL (the API origin) as the default resource audience.
-  const audience = c.env.BETTER_AUTH_URL.replace(/\/$/, "");
+  // Better Auth signs JWTs with the configured baseURL as `iss` and `aud`.
+  // Its protocol endpoints (including JWKS) are mounted below /api/auth.
+  const issuer = c.env.BETTER_AUTH_URL.replace(/\/$/, "");
+  const audience = issuer;
   let claims: Record<string, unknown>;
   try {
     claims = (await resourceClient.getActions().verifyAccessToken(token, {
