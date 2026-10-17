@@ -33,7 +33,12 @@ accessRoutes.get("/access", accessRateLimit, async (c) => {
       verifyOptions: { issuer, audience },
       scopes: ["pmk:access"],
     })) as Record<string, unknown>;
-  } catch {
+  } catch (error) {
+    const details = error instanceof Error ? error.message : "unknown verifier error";
+    console.error("oauth access token verification failed", {
+      errorType: error instanceof Error ? error.name : typeof error,
+      details: details.slice(0, 160),
+    });
     throw unauthorized("Invalid or expired access token.");
   }
 
