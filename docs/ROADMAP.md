@@ -13,7 +13,7 @@ Update the Status column when a phase completes (with date and PR/commit). Each 
 | 2 | Google auth, domain allowlist, invite-only, sessions (web + mobile-ready), bootstrap super admin | `docs/phases/phase-2-auth.md` | done — Epic 3 verified 2026-10-16 |
 | 3 | Core API + admin website (Dashboard, Members, Periods, Roles, Assignments, Settings) | `docs/phases/phase-3-api-and-admin-web.md` | done — Epic 4 verified 2026-10-16 |
 | 4 | Native mobile app (Expo) per Figma | `docs/phases/phase-4-mobile-app.md` | awaiting owner review — Epic 5 stories 5.1–5.4 verified 2026-10-17 |
-| 5 | OIDC provider + Integrations screen + PI-NEXUS contract | `docs/phases/phase-5-oidc-integrations.md` | not started |
+| 5 | OIDC provider + Integrations screen + PI-NEXUS contract | `docs/phases/phase-5-oidc-integrations.md` | in progress — Story 6.1 verified 2026-10-17 |
 | 6 | Hardening, audit UI, e2e, production deploy, store builds | `docs/phases/phase-6-hardening-release.md` | not started |
 
 Deferred (not in MVP): Reports tab, Events, Notifications, Panitia (event-scoped), legacy data import, optional TOTP step-up.

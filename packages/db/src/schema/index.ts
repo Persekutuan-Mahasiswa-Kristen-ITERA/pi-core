@@ -8,3 +8,5 @@ export * from "./rbac";
 export * from "./audit";
 export * from "./auth";
 export * from "./settings";
+export * from "./oauth";
+export * from "./jwks";

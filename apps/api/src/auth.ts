@@ -18,7 +18,8 @@ import * as schema from "@pi-core/db/schema";
 import { GENERIC_SIGN_IN_DENIAL } from "@pi-core/shared";
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
-import { bearer } from "better-auth/plugins";
+import { bearer, jwt } from "better-auth/plugins";
+import { oauthProvider } from "@better-auth/oauth-provider";
 import type { Env } from "./env";
 
 export type Auth = ReturnType<typeof createAuth>;
@@ -89,6 +90,11 @@ function authSchema() {
     sessions: schema.authSessions,
     accounts: schema.authAccounts,
     verifications: schema.authVerifications,
+    oauthClient: schema.oauthClients,
+    oauthRefreshToken: schema.oauthRefreshTokens,
+    oauthAccessToken: schema.oauthAccessTokens,
+    oauthConsent: schema.oauthConsents,
+    jwks: schema.jwks,
   };
 }
 
@@ -159,11 +165,7 @@ export function createAuth(db: Database, env: Env): AuthInstance {
       google: {
         clientId: env.GOOGLE_CLIENT_ID,
         clientSecret: env.GOOGLE_CLIENT_SECRET,
-        /**
-         * Invite-only (FR-4). A Google account with no matching `members` row must **not** get one:
-         * every member is created deliberately by an admin, never by signing in. With sign-up
-         * disabled Better Auth refuses instead of inserting, so `members` stays a curated list.
-         */
+        /** Invite-only: unknown Google accounts cannot create members. */
         disableSignUp: true,
         disableImplicitSignUp: true,
       },
@@ -173,11 +175,29 @@ export function createAuth(db: Database, env: Env): AuthInstance {
     emailAndPassword: { enabled: false },
 
     /**
-     * `bearer` lets a client authenticate with `Authorization: Bearer <session token>` instead of a
-     * cookie — which is how the mobile app carries its session (story 3.3). It changes nothing for the
-     * web: `sessionMiddleware` hands Better Auth the request headers either way, so both transports
-     * resolve to the same session and the same admission checks.
+     * OAuth 2.1 provider: OIDC discovery, authorization code + mandatory PKCE,
+     * JWT/JWKS, UserInfo, revocation and introspection are supplied by the pinned plugin.
      */
-    plugins: [bearer()],
+    plugins: [
+      bearer(),
+      jwt({
+        schema: {
+          jwks: {
+            modelName: "jwks",
+            fields: {
+              publicKey: "publicKey",
+              privateKey: "privateKey",
+              createdAt: "createdAt",
+              expiresAt: "expiresAt",
+            },
+          },
+        },
+      }),
+      oauthProvider({
+        loginPage: "/sign-in",
+        consentPage: "/consent",
+        scopes: ["openid", "profile", "email", "pmk:access"],
+      }),
+    ],
   });
 }

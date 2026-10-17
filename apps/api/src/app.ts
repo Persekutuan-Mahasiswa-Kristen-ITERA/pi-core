@@ -12,6 +12,7 @@ import { avatarRoutes } from "./routes/avatar";
 import { healthRoutes } from "./routes/health";
 import { memberRoutes } from "./routes/members";
 import { mobileAuthRoutes } from "./routes/mobile-auth";
+import { oidcRoutes } from "./routes/oidc";
 import { orgUnitRoutes } from "./routes/org-units";
 import { periodRoutes } from "./routes/periods";
 import { roleRoutes } from "./routes/roles";
@@ -49,6 +50,8 @@ app.get("/", (c) =>
   }),
 );
 
+// Standard OIDC issuer aliases. The protocol implementation remains in Better Auth.
+app.route("/", oidcRoutes);
 app.route("/api/v1", healthRoutes);
 
 /**

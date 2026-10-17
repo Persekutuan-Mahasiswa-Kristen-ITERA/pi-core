@@ -15,12 +15,13 @@
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "~1.6.33",
+    "@better-auth/oauth-provider": "~1.6.33",
     "@pi-core/db": "workspace:*",
     "@pi-core/shared": "workspace:*",
+    "aws4fetch": "^1.0.20",
     "better-auth": "~1.6.33",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.9.10",
-    "aws4fetch": "^1.0.20",
     "zod": "^4.1.0"
   },
   "devDependencies": {

@@ -49,6 +49,27 @@ export const ROUTE_AUTHORIZATION: readonly RouteAuthorization[] = [
       "Liveness probe. Returns only { ok, database, role, environment, latencyMs } — no member data — and is also hit by the keep-alive Cron Trigger (ADR-0014).",
   },
   {
+    file: "routes/oidc.ts",
+    method: "GET",
+    path: "/.well-known/openid-configuration",
+    public: true,
+    reason: "OIDC discovery metadata contains issuer and protocol endpoints only; it has no member or authorization data.",
+  },
+  {
+    file: "routes/oidc.ts",
+    method: "GET",
+    path: "/.well-known/oauth-authorization-server",
+    public: true,
+    reason: "OAuth authorization-server metadata is public protocol metadata; it contains no member data.",
+  },
+  {
+    file: "routes/oidc.ts",
+    method: "GET",
+    path: "/jwks",
+    public: true,
+    reason: "JWKS publishes public signing keys only; private signing material never leaves the Worker.",
+  },
+  {
     file: "routes/auth.ts",
     method: "ALL",
     path: "*",

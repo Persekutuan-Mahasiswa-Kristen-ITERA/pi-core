@@ -27,6 +27,7 @@ const NON_ROUTE_CALLS: readonly string[] = [
   "middleware/authorization.ts GET actor",
   "middleware/session.ts GET requestId",
   "routes/auth.ts GET auth",
+  "routes/oidc.ts GET auth",
   "routes/sign-in-page.ts GET actor",
   "routes/sign-in-page.ts GET sessionEmail",
   "routes/mobile-auth.ts GET db",
