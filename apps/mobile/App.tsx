@@ -13,6 +13,7 @@ import {
 import { loadSession, MobileSignInError, signInWithGoogle, signOut, type SignedInSession } from "./src/auth/session";
 import { AppIcon } from "./src/components/AppIcon";
 import { AuthScreen } from "./src/auth/AuthScreen";
+import { DirectoryScreen } from "./src/screens/DirectoryScreen";
 
 import { tokens, type AppTab, tabLabels } from "./src/theme/tokens"
 
@@ -76,7 +77,7 @@ export default function App() {
         </View>
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          {activeTab === "home" ? <Dashboard /> : <PlaceholderScreen title={tabLabels[activeTab]} />}
+          {activeTab === "home" ? <Dashboard /> : activeTab === "directory" ? <DirectoryScreen /> : <PlaceholderScreen title={tabLabels[activeTab]} />}
         </ScrollView>
 
         <View accessibilityLabel="Navigasi utama" style={styles.bottomNav}>
@@ -112,6 +113,7 @@ export default function App() {
                 onPress={() => {
                   setDrawerOpen(false);
                   if (index === 0) setActiveTab("home");
+                  if (index === 1) setActiveTab("directory");
                 }}
                 style={[styles.drawerItem, index === 0 && styles.drawerItemActive]}
               >
