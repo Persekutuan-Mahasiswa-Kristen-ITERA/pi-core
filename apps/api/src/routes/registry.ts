@@ -339,6 +339,14 @@ export const ROUTE_AUTHORIZATION: readonly RouteAuthorization[] = [
       "End or transfer an assignment (FR-33) — the same row changing shape, so one endpoint. Guarded by assignment:manage, and the guard re-runs against the NEW destination: a transfer moves authority and must satisfy the same rank/subtree rule as the original placement, because checking only the old location would let an admin move someone into a unit they cannot manage. An `endsOn` before `startsOn` is refused rather than stored: the assignment would exist, look active, and grant nothing. Audited (FR-43) with the before/after window.",
   },
   {
+    file: "routes/access.ts",
+    method: "GET",
+    path: "/access",
+    mountedAt: "/api/v1",
+    public: true,
+    reason: "Bearer access token is the credential and the handler verifies its issuer, audience, signature, expiry and pmk:access scope before querying current authorization.",
+  },
+  {
     file: "routes/integrations.ts",
     method: "GET",
     path: "/",

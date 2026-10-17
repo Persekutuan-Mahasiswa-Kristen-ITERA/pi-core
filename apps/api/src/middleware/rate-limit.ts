@@ -80,3 +80,4 @@ export function rateLimit(options: RateLimitOptions) {
 /** Limits applied by the app. Auth endpoints are the tightest: that is where guessing happens. */
 export const authRateLimit = rateLimit({ limit: 20, windowMs: 60_000, scope: "authentication" });
 export const writeRateLimit = rateLimit({ limit: 120, windowMs: 60_000, scope: "writes" });
+export const accessRateLimit = rateLimit({ limit: 60, windowMs: 60_000, scope: "authorization access" });

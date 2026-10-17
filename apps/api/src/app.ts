@@ -7,6 +7,7 @@ import { requestIdMiddleware } from "./middleware/request-id";
 import { securityHeadersMiddleware } from "./middleware/security-headers";
 import { authRoutes } from "./routes/auth";
 import { assignmentRoutes } from "./routes/assignments";
+import { accessRoutes } from "./routes/access";
 import { auditRoutes } from "./routes/audit";
 import { avatarRoutes } from "./routes/avatar";
 import { healthRoutes } from "./routes/health";
@@ -74,6 +75,10 @@ app.route("/sign-in", signInPageRoutes);
 
 // Mobile hand-off (story 3.3): the system browser returns here, the app exchanges the code for a token.
 app.route("/api/v1/auth/mobile", mobileAuthRoutes);
+
+// Authorization snapshot for registered consumer apps (story 6.3). The resource client verifies
+// issuer/audience/signature/expiry/scope; the DB resolver recomputes current authorization.
+app.route("/api/v1", accessRoutes);
 
 // Member reads (story 4.2). Scope is enforced inside the SQL, not here — see packages/db/src/members.ts.
 app.route("/api/v1/members", memberRoutes);
