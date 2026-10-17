@@ -10,6 +10,7 @@ import { assignmentRoutes } from "./routes/assignments";
 import { auditRoutes } from "./routes/audit";
 import { avatarRoutes } from "./routes/avatar";
 import { healthRoutes } from "./routes/health";
+import { integrationRoutes } from "./routes/integrations";
 import { memberRoutes } from "./routes/members";
 import { mobileAuthRoutes } from "./routes/mobile-auth";
 import { oidcRoutes } from "./routes/oidc";
@@ -94,6 +95,10 @@ app.route("/api/v1/assignments", assignmentRoutes);
 
 // Settings (story 4.9): allowed domains and the org profile. super_admin only (FR-42).
 app.route("/api/v1/settings", settingsRoutes);
+
+// OIDC integration registry (story 6.2). Better Auth owns OAuth persistence and secret hashing;
+// this route adds PI-CORE RBAC, strict validation, status changes and audit rows.
+app.route("/api/v1/integrations", integrationRoutes);
 
 // Audit log (story 4.10). `audit:read` guards it; the O-scope requirement is enforced in the db layer.
 app.route("/api/v1/audit", auditRoutes);

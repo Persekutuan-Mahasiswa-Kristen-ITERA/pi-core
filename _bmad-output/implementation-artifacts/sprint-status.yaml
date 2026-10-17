@@ -86,7 +86,7 @@ development_status:
 
   epic-6: in-progress
   6-1-oidc-provider-discovery-jwks-pkce: done
-  6-2-integrations-management: backlog
+  6-2-integrations-management: done
   6-3-api-v1-access-endpoint: backlog
   6-4-integrations-screen-connection-status-pi-nexus-contract: backlog
   epic-6-retrospective: optional

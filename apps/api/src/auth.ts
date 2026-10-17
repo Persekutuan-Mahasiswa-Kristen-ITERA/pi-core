@@ -13,9 +13,9 @@
  * around the callback, not here — Better Auth's job is the handshake and the session.
  */
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
-import { resolveSignIn, type Database } from "@pi-core/db";
+import { loadActor, resolveSignIn, type Database } from "@pi-core/db";
 import * as schema from "@pi-core/db/schema";
-import { GENERIC_SIGN_IN_DENIAL } from "@pi-core/shared";
+import { can, GENERIC_SIGN_IN_DENIAL } from "@pi-core/shared";
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
 import { bearer, jwt } from "better-auth/plugins";
@@ -197,6 +197,13 @@ export function createAuth(db: Database, env: Env): AuthInstance {
         loginPage: "/sign-in",
         consentPage: "/consent",
         scopes: ["openid", "profile", "email", "pmk:access"],
+        grantTypes: ["authorization_code", "refresh_token"],
+        clientPrivileges: async ({ action, user }) => {
+          if (user?.id === undefined) return false;
+          const loaded = await loadActor(db, user.id);
+          const permission = action === "read" || action === "list" ? "integration:read" : "integration:manage";
+          return can(loaded.actor, permission);
+        },
       }),
     ],
   });
