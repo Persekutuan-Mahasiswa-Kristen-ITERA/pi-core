@@ -23,12 +23,13 @@ accessRoutes.get("/access", accessRateLimit, async (c) => {
   const token = bearerToken(c);
   // Better Auth signs JWTs with the configured baseURL as `iss` and `aud`.
   // Its protocol endpoints (including JWKS) are mounted below /api/auth.
-  const issuer = c.env.BETTER_AUTH_URL.replace(/\/$/, "");
-  const audience = issuer;
+  const authBaseUrl = c.env.BETTER_AUTH_URL.replace(/\/$/, "");
+  const issuer = authBaseUrl;
+  const audience = authBaseUrl;
   let claims: Record<string, unknown>;
   try {
     claims = (await resourceClient.getActions().verifyAccessToken(token, {
-      jwksUrl: `${issuer}/jwks`,
+      jwksUrl: `${authBaseUrl}/api/auth/jwks`,
       verifyOptions: { issuer, audience },
       scopes: ["pmk:access"],
     })) as Record<string, unknown>;
