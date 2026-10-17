@@ -78,6 +78,13 @@
       "when": 1792233401938,
       "tag": "0010_magenta_paibok",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792259942509,
+      "tag": "0011_sloppy_sugar_man",
+      "breakpoints": true
     }
   ]
 }
