@@ -22,7 +22,8 @@ function bearerToken(c: Context<AppEnv>): string {
 accessRoutes.get("/access", accessRateLimit, async (c) => {
   const token = bearerToken(c);
   const issuer = `${c.env.BETTER_AUTH_URL.replace(/\/$/, "")}/api/auth`;
-  const audience = issuer;
+  // Better Auth uses the API origin as the default resource audience.
+  const audience = c.env.BETTER_AUTH_URL.replace(/\/$/, "");
   let claims: Record<string, unknown>;
   try {
     claims = (await resourceClient.getActions().verifyAccessToken(token, {
