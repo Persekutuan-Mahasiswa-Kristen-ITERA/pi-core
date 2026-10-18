@@ -10,9 +10,10 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 import { loadSession, MobileSignInError, saveSession, signInWithGoogle, signOut, type SignedInSession } from "./src/auth/session";
-import { AppIcon } from "./src/components/AppIcon";
+import { AppIcon, type IconName } from "./src/components/AppIcon";
 import { AuthScreen } from "./src/auth/AuthScreen";
 import { DirectoryScreen } from "./src/screens/DirectoryScreen";
 import { IntegrationsScreen } from "./src/screens/IntegrationsScreen";
@@ -28,7 +29,15 @@ type AuthState =
 
 type ActiveScreen = "tab" | "integrations" | "roles" | "periods" | "assignments" | "settings";
 
-const drawerItems = ["Dashboard", "Members", "Roles", "Periods", "Assignments", "Integrations", "Settings"];
+const drawerItems: Array<{ label: string; icon: keyof typeof Ionicons.glyphMap }> = [
+  { label: "Dashboard", icon: "home-outline" },
+  { label: "Direktori Anggota", icon: "people-outline" },
+  { label: "Peran & Akses (RBAC)", icon: "shield-checkmark-outline" },
+  { label: "Periode Kepengurusan", icon: "calendar-outline" },
+  { label: "Penugasan Pengurus", icon: "briefcase-outline" },
+  { label: "Integrasi OIDC Client", icon: "key-outline" },
+  { label: "Pengaturan Organisasi", icon: "settings-outline" },
+];
 
 export default function App() {
   const [auth, setAuth] = useState<AuthState>({ kind: "checking" });
@@ -79,10 +88,10 @@ export default function App() {
   }
 
   const getScreenTitle = () => {
-    if (activeScreen === "integrations") return "Integrations (OIDC)";
-    if (activeScreen === "roles") return "Peran & Akses";
+    if (activeScreen === "integrations") return "Integrasi SSO & OIDC";
+    if (activeScreen === "roles") return "Peran & Hak Akses";
     if (activeScreen === "periods") return "Periode Kepengurusan";
-    if (activeScreen === "assignments") return "Penugasan";
+    if (activeScreen === "assignments") return "Penugasan Pengurus";
     if (activeScreen === "settings") return "Pengaturan Organisasi";
     if (activeTab === "home") return "Dashboard";
     return tabLabels[activeTab];
@@ -90,16 +99,24 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={tokens.colors.dashboardBrown} />
+      <StatusBar barStyle="light-content" backgroundColor="#2D1E0C" />
       <View style={styles.app}>
-        {/* Header */}
+        {/* Modern App Header */}
         <View style={styles.header}>
           <Pressable accessibilityLabel="Buka menu" hitSlop={10} onPress={() => setDrawerOpen(true)} style={styles.iconButton}>
-            <AppIcon name="menu" />
+            <Ionicons name="menu" size={24} color={tokens.colors.white} />
           </Pressable>
-          <Text style={styles.headerTitle}>{getScreenTitle()}</Text>
-          <Pressable accessibilityLabel="Home" hitSlop={10} onPress={() => { setActiveScreen("tab"); setActiveTab("home"); }} style={styles.iconButton}>
-            <AppIcon name="bell" />
+          <View style={{ alignItems: "center" }}>
+            <Text style={styles.headerTitle}>{getScreenTitle()}</Text>
+            <Text style={styles.headerSubtitle}>PI-CORE · PMK ITERA</Text>
+          </View>
+          <Pressable
+            accessibilityLabel="Dashboard"
+            hitSlop={10}
+            onPress={() => { setActiveScreen("tab"); setActiveTab("home"); }}
+            style={styles.iconButton}
+          >
+            <Ionicons name="notifications-outline" size={22} color={tokens.colors.white} />
           </Pressable>
         </View>
 
@@ -138,70 +155,94 @@ export default function App() {
           </ScrollView>
         )}
 
-        {/* Bottom Navigation */}
+        {/* Modern Bottom Navigation */}
         <View accessibilityLabel="Navigasi utama" style={styles.bottomNav}>
-          {(Object.keys(tabLabels) as AppTab[]).map((tab) => (
-            <Pressable
-              accessibilityLabel={tabLabels[tab]}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: activeScreen === "tab" && activeTab === tab }}
-              key={tab}
-              onPress={() => {
-                setActiveScreen("tab");
-                setActiveTab(tab);
-              }}
-              style={styles.navItem}
-            >
-              <AppIcon name={tab} active={activeScreen === "tab" && activeTab === tab} />
-              <Text style={[styles.navLabel, activeScreen === "tab" && activeTab === tab && styles.navLabelActive]}>
-                {tabLabels[tab]}
-              </Text>
-            </Pressable>
-          ))}
+          {(Object.keys(tabLabels) as AppTab[]).map((tab) => {
+            const isSelected = activeScreen === "tab" && activeTab === tab;
+            return (
+              <Pressable
+                accessibilityLabel={tabLabels[tab]}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isSelected }}
+                key={tab}
+                onPress={() => {
+                  setActiveScreen("tab");
+                  setActiveTab(tab);
+                }}
+                style={styles.navItem}
+              >
+                <AppIcon name={tab} active={isSelected} size={22} />
+                <Text style={[styles.navLabel, isSelected && styles.navLabelActive]}>
+                  {tabLabels[tab]}
+                </Text>
+                {isSelected && <View style={styles.navDot} />}
+              </Pressable>
+            );
+          })}
         </View>
       </View>
 
-      {/* Drawer Modal */}
+      {/* Modern Drawer Modal */}
       <Modal animationType="slide" transparent visible={drawerOpen} onRequestClose={() => setDrawerOpen(false)}>
         <View style={styles.drawerBackdrop}>
           <View style={styles.drawer}>
             <View style={styles.drawerHeader}>
-              <Text style={styles.drawerBrand}>PI-CORE</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                <View style={styles.brandIconCircle}>
+                  <Ionicons name="sparkles" size={18} color="#2D1E0C" />
+                </View>
+                <View>
+                  <Text style={styles.drawerBrand}>PI-CORE</Text>
+                  <Text style={styles.drawerSub}>PMK ITERA Portal</Text>
+                </View>
+              </View>
               <Pressable accessibilityLabel="Tutup menu" onPress={() => setDrawerOpen(false)} style={styles.drawerClose}>
-                <AppIcon name="close" />
+                <Ionicons name="close" size={24} color="#2D1E0C" />
               </Pressable>
             </View>
-            {drawerItems.map((item, index) => (
-              <Pressable
-                accessibilityRole="button"
-                key={item}
-                onPress={() => {
-                  setDrawerOpen(false);
-                  if (index === 0) { setActiveScreen("tab"); setActiveTab("home"); }
-                  else if (index === 1) { setActiveScreen("tab"); setActiveTab("directory"); }
-                  else if (index === 2) { setActiveScreen("roles"); }
-                  else if (index === 3) { setActiveScreen("periods"); }
-                  else if (index === 4) { setActiveScreen("assignments"); }
-                  else if (index === 5) { setActiveScreen("integrations"); }
-                  else if (index === 6) { setActiveScreen("settings"); }
-                }}
-                style={[
-                  styles.drawerItem,
-                  ((index === 0 && activeScreen === "tab" && activeTab === "home") ||
-                   (index === 1 && activeScreen === "tab" && activeTab === "directory") ||
-                   (index === 2 && activeScreen === "roles") ||
-                   (index === 3 && activeScreen === "periods") ||
-                   (index === 4 && activeScreen === "assignments") ||
-                   (index === 5 && activeScreen === "integrations") ||
-                   (index === 6 && activeScreen === "settings")) && styles.drawerItemActive
-                ]}
-              >
-                <Text style={styles.drawerItemText}>{item}</Text>
-                <AppIcon name="chevron" />
-              </Pressable>
-            ))}
+
+            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+              {drawerItems.map((item, index) => {
+                const isItemActive =
+                  (index === 0 && activeScreen === "tab" && activeTab === "home") ||
+                  (index === 1 && activeScreen === "tab" && activeTab === "directory") ||
+                  (index === 2 && activeScreen === "roles") ||
+                  (index === 3 && activeScreen === "periods") ||
+                  (index === 4 && activeScreen === "assignments") ||
+                  (index === 5 && activeScreen === "integrations") ||
+                  (index === 6 && activeScreen === "settings");
+
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    key={item.label}
+                    onPress={() => {
+                      setDrawerOpen(false);
+                      if (index === 0) { setActiveScreen("tab"); setActiveTab("home"); }
+                      else if (index === 1) { setActiveScreen("tab"); setActiveTab("directory"); }
+                      else if (index === 2) { setActiveScreen("roles"); }
+                      else if (index === 3) { setActiveScreen("periods"); }
+                      else if (index === 4) { setActiveScreen("assignments"); }
+                      else if (index === 5) { setActiveScreen("integrations"); }
+                      else if (index === 6) { setActiveScreen("settings"); }
+                    }}
+                    style={[styles.drawerItem, isItemActive && styles.drawerItemActive]}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                      <Ionicons name={item.icon} size={20} color={isItemActive ? tokens.colors.brown : "#4A3215"} />
+                      <Text style={[styles.drawerItemText, isItemActive && styles.drawerItemTextActive]}>
+                        {item.label}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color="rgba(74, 50, 21, 0.4)" />
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
             <Pressable onPress={() => void onSignOut()} style={styles.drawerSignOut}>
-              <Text style={styles.drawerSignOutText}>Keluar</Text>
+              <Ionicons name="log-out-outline" size={18} color={tokens.colors.danger} />
+              <Text style={styles.drawerSignOutText}>Keluar Akun</Text>
             </Pressable>
           </View>
           <Pressable accessibilityLabel="Tutup drawer" onPress={() => setDrawerOpen(false)} style={styles.backdropPressable} />
@@ -215,25 +256,35 @@ function Dashboard({ onOpenDirectory }: { onOpenDirectory: () => void }) {
   return (
     <>
       <View style={styles.welcome}>
-        <Text style={styles.welcomeEyebrow}>WELCOME BACK</Text>
+        <Text style={styles.welcomeEyebrow}>PORTAL RESMI PMK ITERA</Text>
         <Text style={styles.welcomeTitle}>Shalom, Admin!</Text>
-        <Text style={styles.welcomeBody}>Kelola organisasi PMK ITERA dengan mudah.</Text>
+        <Text style={styles.welcomeBody}>
+          Kelola seluruh anggota, peran otorisasi, dan penugasan jabatan dari satu genggaman.
+        </Text>
       </View>
-      <Text style={styles.sectionTitle}>Ringkasan</Text>
+
+      <Text style={styles.sectionTitle}>Ringkasan Sistem</Text>
       <View style={styles.statGrid}>
-        <StatCard label="Total Members" value="128" delta="Terdaftar" positive />
-        <StatCard label="Active Period" value="2026/2027" delta="Aktif" positive />
-        <StatCard label="Available Roles" value="10" delta="100% System" positive />
+        <StatCard label="Total Anggota" value="128" delta="Terverifikasi Aktif" icon="people" />
+        <StatCard label="Periode Kepengurusan" value="2026/2027" delta="Sedang Berjalan" icon="calendar" />
+        <StatCard label="Peran Otorisasi (RBAC)" value="10 Peran" delta="23 Granular Permissions" icon="shield-checkmark" />
       </View>
+
       <View style={styles.sectionRow}>
-        <Text style={styles.sectionTitle}>Quick Access</Text>
+        <Text style={styles.sectionTitle}>Akses Cepat</Text>
         <Pressable onPress={onOpenDirectory}>
           <Text style={styles.seeAll}>Buka Direktori →</Text>
         </Pressable>
       </View>
+
       <View style={styles.quickCard}>
-        <Text style={styles.quickTitle}>Direktori Anggota</Text>
-        <Text style={styles.quickBody}>Cari dan hubungi rekan pengurus serta anggota PMK ITERA.</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Ionicons name="people" size={20} color={tokens.colors.brown} />
+          <Text style={styles.quickTitle}>Direktori Anggota</Text>
+        </View>
+        <Text style={styles.quickBody}>
+          Cari dan lihat informasi kontak pengurus, mahasiswa ITERA, serta status penugasan unit.
+        </Text>
         <Pressable accessibilityRole="button" style={styles.primaryButton} onPress={onOpenDirectory}>
           <Text style={styles.primaryButtonText}>Buka Direktori Anggota</Text>
         </Pressable>
@@ -246,27 +297,27 @@ function ReportsScreen() {
   return (
     <View style={{ gap: 14 }}>
       <Text style={styles.sectionTitle}>Laporan Struktur Organisasi</Text>
-      <Text style={{ color: tokens.colors.muted, fontSize: 13 }}>
-        Struktur hierarki resmi PMK ITERA berdasarkan ADR-0002.
+      <Text style={{ color: tokens.colors.muted, fontSize: 13, lineHeight: 18 }}>
+        Struktur resmi organisasi PMK ITERA berdasarkan ADR-0002.
       </Text>
       <View style={styles.statCard}>
         <Text style={styles.statLabel}>BADAN PENGURUS HARIAN (BPH)</Text>
         <Text style={styles.statValue}>1 Unit Pusat</Text>
-        <Text style={{ color: tokens.colors.body, fontSize: 12, marginTop: 4 }}>
+        <Text style={{ color: tokens.colors.body, fontSize: 12.5, marginTop: 4 }}>
           Ketua Umum, Wakil Ketua, Sekretaris Umum, Bendahara Umum.
         </Text>
       </View>
       <View style={styles.statCard}>
         <Text style={styles.statLabel}>DEPARTEMEN & BIRO</Text>
         <Text style={styles.statValue}>8 Unit Pelaksana</Text>
-        <Text style={{ color: tokens.colors.body, fontSize: 12, marginTop: 4 }}>
+        <Text style={{ color: tokens.colors.body, fontSize: 12.5, marginTop: 4 }}>
           7 Departemen (Pelayanan, Media, Musik, dll.) + 1 Biro Bendahara.
         </Text>
       </View>
       <View style={styles.statCard}>
         <Text style={styles.statLabel}>DIVISI OPERASIONAL</Text>
         <Text style={styles.statValue}>16 Divisi</Text>
-        <Text style={{ color: tokens.colors.body, fontSize: 12, marginTop: 4 }}>
+        <Text style={{ color: tokens.colors.body, fontSize: 12.5, marginTop: 4 }}>
           Mencakup Divisi Ibadah, Doa, Kreatif, Sound, Humas, dan Harmonisasi.
         </Text>
       </View>
@@ -281,37 +332,58 @@ function ProfileScreen({ onSignOut }: { onSignOut: () => void }) {
 
   return (
     <View style={{ gap: 14 }}>
-      <View style={{ alignItems: "center", paddingVertical: 16 }}>
-        <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: tokens.colors.gold, alignItems: "center", justifyContent: "center" }}>
-          <Text style={{ fontSize: 26, fontWeight: "800", color: tokens.colors.brown }}>FY</Text>
+      <View style={{ alignItems: "center", paddingVertical: 18 }}>
+        <View style={styles.profileAvatar}>
+          <Text style={styles.profileAvatarText}>FY</Text>
         </View>
-        <Text style={{ fontSize: 20, fontWeight: "700", color: tokens.colors.heading, marginTop: 10 }}>Febryan Yoel</Text>
-        <Text style={{ fontSize: 13, color: tokens.colors.accent, fontWeight: "600" }}>Super Admin (BPH)</Text>
+        <Text style={{ fontSize: 20, fontWeight: "800", color: tokens.colors.heading, marginTop: 10 }}>
+          Febryan Yoel
+        </Text>
+        <View style={styles.roleBadgeContainer}>
+          <Ionicons name="shield-checkmark" size={13} color="#2563eb" />
+          <Text style={styles.roleBadgeText}>Super Admin (BPH)</Text>
+        </View>
       </View>
 
       <View style={styles.statCard}>
-        <Text style={styles.statLabel}>IDENTITAS ANGGOTA</Text>
-        <View style={{ gap: 8, marginTop: 8 }}>
-          <Text style={{ color: tokens.colors.body, fontSize: 13 }}>NIM: <Text style={{ fontWeight: "700", color: tokens.colors.heading }}>121140001</Text></Text>
-          <Text style={{ color: tokens.colors.body, fontSize: 13 }}>Fakultas: <Text style={{ fontWeight: "700", color: tokens.colors.heading }}>FTI</Text></Text>
-          <Text style={{ color: tokens.colors.body, fontSize: 13 }}>Program Studi: <Text style={{ fontWeight: "700", color: tokens.colors.heading }}>Teknik Informatika</Text></Text>
-          <Text style={{ color: tokens.colors.body, fontSize: 13 }}>Angkatan: <Text style={{ fontWeight: "700", color: tokens.colors.heading }}>2021</Text></Text>
-          <Text style={{ color: tokens.colors.body, fontSize: 13 }}>Email: <Text style={{ fontWeight: "700", color: tokens.colors.heading }}>febryan.admin@itera.ac.id</Text></Text>
-          <Text style={{ color: tokens.colors.body, fontSize: 13 }}>Nomor WhatsApp: <Text style={{ fontWeight: "700", color: tokens.colors.heading }}>{phone}</Text></Text>
+        <Text style={styles.statLabel}>IDENTITAS AKADEMIK & KONTAK</Text>
+        <View style={{ gap: 10, marginTop: 10 }}>
+          <View style={styles.profileRow}>
+            <Text style={styles.profileField}>NIM ITERA</Text>
+            <Text style={styles.profileValue}>121140001</Text>
+          </View>
+          <View style={styles.profileRow}>
+            <Text style={styles.profileField}>Program Studi</Text>
+            <Text style={styles.profileValue}>Teknik Informatika (FTI)</Text>
+          </View>
+          <View style={styles.profileRow}>
+            <Text style={styles.profileField}>Tahun Angkatan</Text>
+            <Text style={styles.profileValue}>2021</Text>
+          </View>
+          <View style={styles.profileRow}>
+            <Text style={styles.profileField}>Email ITERA</Text>
+            <Text style={styles.profileValue}>febryan.admin@itera.ac.id</Text>
+          </View>
+          <View style={styles.profileRow}>
+            <Text style={styles.profileField}>Nomor WhatsApp</Text>
+            <Text style={styles.profileValue}>{phone}</Text>
+          </View>
         </View>
       </View>
 
-      <Pressable accessibilityRole="button" style={styles.primaryButton} onPress={() => setEditing(true)}>
-        <Text style={styles.primaryButtonText}>Ubah Kontak Mandiri</Text>
+      <Pressable accessibilityRole="button" style={styles.editContactButton} onPress={() => setEditing(true)}>
+        <Ionicons name="create-outline" size={17} color={tokens.colors.brown} />
+        <Text style={styles.editContactText}>Perbarui Kontak WhatsApp</Text>
       </Pressable>
 
-      <Pressable accessibilityRole="button" style={[styles.primaryButton, { backgroundColor: tokens.colors.danger, marginTop: 4 }]} onPress={onSignOut}>
-        <Text style={styles.primaryButtonText}>Keluar dari Aplikasi</Text>
+      <Pressable accessibilityRole="button" style={styles.signOutButton} onPress={onSignOut}>
+        <Ionicons name="log-out-outline" size={17} color={tokens.colors.white} />
+        <Text style={styles.signOutText}>Keluar dari Aplikasi</Text>
       </Pressable>
 
       {editing && (
         <Modal animationType="fade" transparent visible={editing} onRequestClose={() => setEditing(false)}>
-          <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 24 }}>
+          <View style={{ flex: 1, backgroundColor: "rgba(15,23,42,0.5)", justifyContent: "center", padding: 24 }}>
             <View style={{ backgroundColor: tokens.colors.white, borderRadius: 16, padding: 24, gap: 14 }}>
               <Text style={styles.sectionTitle}>Ubah Nomor WhatsApp</Text>
               <TextInput
@@ -319,6 +391,7 @@ function ProfileScreen({ onSignOut }: { onSignOut: () => void }) {
                 onChangeText={setPhone}
                 style={{ borderWidth: 1, borderColor: tokens.colors.warmBorder, borderRadius: 8, padding: 12, fontSize: 14 }}
                 placeholder="+62 8..."
+                keyboardType="phone-pad"
               />
               {saved && <Text style={{ color: tokens.colors.success, fontSize: 12 }}>✓ Berhasil disimpan!</Text>}
               <View style={{ flexDirection: "row", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
@@ -348,7 +421,7 @@ function ProfileScreen({ onSignOut }: { onSignOut: () => void }) {
 
 function RolesScreen() {
   const roles = [
-    { name: "Super Admin", scope: "O (Full)", grants: "22 Izin" },
+    { name: "Super Admin", scope: "O (Full Scope)", grants: "22 Izin" },
     { name: "Organization Admin", scope: "O (Organisasi)", grants: "17 Izin" },
     { name: "BPH", scope: "O (Organisasi)", grants: "7 Izin" },
     { name: "Kepala Departemen", scope: "U (Subtree)", grants: "7 Izin" },
@@ -366,9 +439,11 @@ function RolesScreen() {
         <View key={r.name} style={styles.statCard}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
             <Text style={{ fontSize: 15, fontWeight: "700", color: tokens.colors.heading }}>{r.name}</Text>
-            <Text style={{ fontSize: 11, fontWeight: "700", color: tokens.colors.accent }}>{r.grants}</Text>
+            <View style={{ backgroundColor: "rgba(124, 58, 237, 0.1)", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 }}>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: "#7c3aed" }}>{r.grants}</Text>
+            </View>
           </View>
-          <Text style={{ fontSize: 12, color: tokens.colors.muted, marginTop: 4 }}>Lingkup Otorisasi: {r.scope}</Text>
+          <Text style={{ fontSize: 12, color: tokens.colors.muted, marginTop: 6 }}>Lingkup Otorisasi: {r.scope}</Text>
         </View>
       ))}
     </View>
@@ -379,15 +454,18 @@ function PeriodsScreen() {
   return (
     <View style={{ gap: 12 }}>
       <Text style={styles.sectionTitle}>Periode Kepengurusan</Text>
-      <View style={[styles.statCard, { borderColor: tokens.colors.accent, borderWidth: 1 }]}>
-        <Text style={{ fontSize: 11, fontWeight: "700", color: tokens.colors.success }}>● PERIODE AKTIF</Text>
-        <Text style={{ fontSize: 18, fontWeight: "800", color: tokens.colors.heading, marginTop: 4 }}>2026/2027</Text>
-        <Text style={{ fontSize: 12, color: tokens.colors.muted }}>01 Agu 2026 s/d 31 Jul 2027</Text>
+      <View style={[styles.statCard, { borderColor: tokens.colors.gold, borderWidth: 1.5 }]}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: tokens.colors.success }} />
+          <Text style={{ fontSize: 11, fontWeight: "700", color: tokens.colors.success }}>PERIODE AKTIF</Text>
+        </View>
+        <Text style={{ fontSize: 20, fontWeight: "800", color: tokens.colors.heading, marginTop: 4 }}>2026/2027</Text>
+        <Text style={{ fontSize: 12, color: tokens.colors.muted, marginTop: 2 }}>01 Agu 2026 s/d 31 Jul 2027</Text>
       </View>
       <View style={styles.statCard}>
         <Text style={{ fontSize: 11, fontWeight: "700", color: tokens.colors.muted }}>ARSIP MASA BAKTI</Text>
         <Text style={{ fontSize: 16, fontWeight: "700", color: tokens.colors.heading, marginTop: 4 }}>2025/2026</Text>
-        <Text style={{ fontSize: 12, color: tokens.colors.muted }}>01 Agu 2025 s/d 31 Jul 2026 (Selesai)</Text>
+        <Text style={{ fontSize: 12, color: tokens.colors.muted, marginTop: 2 }}>01 Agu 2025 s/d 31 Jul 2026 (Selesai)</Text>
       </View>
     </View>
   );
@@ -398,19 +476,25 @@ function AssignmentsScreen() {
     <View style={{ gap: 12 }}>
       <Text style={styles.sectionTitle}>Penugasan Pengurus</Text>
       <View style={styles.statCard}>
-        <Text style={{ fontSize: 14, fontWeight: "700", color: tokens.colors.heading }}>Jonathan Sitorus</Text>
-        <Text style={{ fontSize: 12, color: tokens.colors.accent }}>BPH · Ketua Umum (Rank 10)</Text>
-        <Text style={{ fontSize: 11, color: tokens.colors.muted, marginTop: 4 }}>Periode 2026/2027 · Aktif</Text>
+        <Text style={{ fontSize: 14.5, fontWeight: "700", color: tokens.colors.heading }}>Jonathan Sitorus</Text>
+        <Text style={{ fontSize: 12.5, color: tokens.colors.accent, fontWeight: "600", marginTop: 2 }}>
+          BPH · Ketua Umum (Rank 10)
+        </Text>
+        <Text style={{ fontSize: 11.5, color: tokens.colors.muted, marginTop: 4 }}>Periode 2026/2027 · Aktif</Text>
       </View>
       <View style={styles.statCard}>
-        <Text style={{ fontSize: 14, fontWeight: "700", color: tokens.colors.heading }}>Daniel Hutapea</Text>
-        <Text style={{ fontSize: 12, color: tokens.colors.accent }}>Divisi Ibadah · Kepala Divisi (Rank 60)</Text>
-        <Text style={{ fontSize: 11, color: tokens.colors.muted, marginTop: 4 }}>Periode 2026/2027 · Aktif</Text>
+        <Text style={{ fontSize: 14.5, fontWeight: "700", color: tokens.colors.heading }}>Daniel Hutapea</Text>
+        <Text style={{ fontSize: 12.5, color: tokens.colors.accent, fontWeight: "600", marginTop: 2 }}>
+          Divisi Ibadah · Kepala Divisi (Rank 60)
+        </Text>
+        <Text style={{ fontSize: 11.5, color: tokens.colors.muted, marginTop: 4 }}>Periode 2026/2027 · Aktif</Text>
       </View>
       <View style={styles.statCard}>
-        <Text style={{ fontSize: 14, fontWeight: "700", color: tokens.colors.heading }}>Grace Lumbantoruan</Text>
-        <Text style={{ fontSize: 12, color: tokens.colors.accent }}>Divisi Media & Kreatif · Staff (Rank 70)</Text>
-        <Text style={{ fontSize: 11, color: tokens.colors.muted, marginTop: 4 }}>Periode 2026/2027 · Aktif</Text>
+        <Text style={{ fontSize: 14.5, fontWeight: "700", color: tokens.colors.heading }}>Grace Lumbantoruan</Text>
+        <Text style={{ fontSize: 12.5, color: tokens.colors.accent, fontWeight: "600", marginTop: 2 }}>
+          Divisi Media & Kreatif · Staff (Rank 70)
+        </Text>
+        <Text style={{ fontSize: 11.5, color: tokens.colors.muted, marginTop: 4 }}>Periode 2026/2027 · Aktif</Text>
       </View>
     </View>
   );
@@ -422,67 +506,142 @@ function SettingsScreen() {
       <Text style={styles.sectionTitle}>Pengaturan Organisasi</Text>
       <View style={styles.statCard}>
         <Text style={styles.statLabel}>PROFIL ORGANISASI</Text>
-        <Text style={{ fontSize: 15, fontWeight: "700", color: tokens.colors.heading, marginTop: 4 }}>PMK ITERA</Text>
-        <Text style={{ fontSize: 12, color: tokens.colors.muted, marginTop: 2 }}>Persekutuan Mahasiswa Kristen Institut Teknologi Sumatera</Text>
+        <Text style={{ fontSize: 16, fontWeight: "800", color: tokens.colors.heading, marginTop: 4 }}>PMK ITERA</Text>
+        <Text style={{ fontSize: 12.5, color: tokens.colors.muted, marginTop: 2 }}>
+          Persekutuan Mahasiswa Kristen Institut Teknologi Sumatera
+        </Text>
       </View>
       <View style={styles.statCard}>
-        <Text style={styles.statLabel}>DOMAIN EMAIL DIIZINKAN</Text>
-        <Text style={{ fontSize: 13, fontWeight: "700", color: tokens.colors.accent, marginTop: 4 }}>@itera.ac.id, @student.itera.ac.id</Text>
-        <Text style={{ fontSize: 11, color: tokens.colors.muted, marginTop: 2 }}>Hanya akun berdomain resmi yang diizinkan masuk.</Text>
+        <Text style={styles.statLabel}>DOMAIN EMAIL DIIZINKAN (WHITELIST)</Text>
+        <Text style={{ fontSize: 13.5, fontWeight: "700", color: tokens.colors.accent, marginTop: 4 }}>
+          @itera.ac.id, @student.itera.ac.id
+        </Text>
+        <Text style={{ fontSize: 11.5, color: tokens.colors.muted, marginTop: 4 }}>
+          Hanya akun berdomain resmi yang diizinkan login ke ekosistem PI-CORE.
+        </Text>
       </View>
     </View>
   );
 }
 
-function StatCard({ label, value, delta, positive }: { label: string; value: string; delta: string; positive: boolean }) {
+function StatCard({ label, value, delta, icon }: { label: string; value: string; delta: string; icon: keyof typeof Ionicons.glyphMap }) {
   return (
     <View style={styles.statCard}>
-      <Text style={styles.statLabel}>{label}</Text>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+        <Text style={styles.statLabel}>{label}</Text>
+        <Ionicons name={icon} size={16} color={tokens.colors.muted} />
+      </View>
       <Text style={styles.statValue}>{value}</Text>
-      <Text style={[styles.statDelta, positive ? styles.positive : styles.negative]}>{delta}</Text>
+      <Text style={styles.statDelta}>{delta}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: tokens.colors.cream },
-  app: { flex: 1, backgroundColor: tokens.colors.cream },
-  header: { backgroundColor: tokens.colors.dashboardBrown, paddingHorizontal: tokens.spacing.screen, paddingVertical: 15, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  headerTitle: { color: tokens.colors.white, fontSize: tokens.typography.screenTitle, fontWeight: "700" },
+  safe: { flex: 1, backgroundColor: "#2D1E0C" },
+  app: { flex: 1, backgroundColor: "#F8F9FA" },
+  header: {
+    backgroundColor: "#2D1E0C",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(230, 198, 92, 0.15)",
+  },
+  headerTitle: { color: tokens.colors.white, fontSize: 17, fontWeight: "800" },
+  headerSubtitle: { color: tokens.colors.gold, fontSize: 10.5, fontWeight: "600", marginTop: 2, letterSpacing: 0.5 },
   iconButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  content: { padding: tokens.spacing.screen, paddingBottom: 24, gap: tokens.spacing.md },
-  welcome: { backgroundColor: tokens.colors.dashboardBrown, borderBottomLeftRadius: 124, marginHorizontal: -tokens.spacing.screen, marginTop: -tokens.spacing.screen, paddingHorizontal: tokens.spacing.screen, paddingTop: 24, paddingBottom: 34 },
-  welcomeEyebrow: { color: tokens.colors.welcomeEyebrow, fontSize: tokens.typography.small, letterSpacing: 0.7 },
-  welcomeTitle: { color: tokens.colors.white, fontSize: tokens.typography.title, fontWeight: "700", marginTop: 5 },
-  welcomeBody: { color: tokens.colors.welcomeBody, fontSize: tokens.typography.body, marginTop: 7 },
-  sectionTitle: { color: tokens.colors.heading, fontSize: tokens.typography.screenTitle, fontWeight: "700" },
-  statGrid: { gap: tokens.spacing.sm },
-  statCard: { backgroundColor: tokens.colors.white, borderRadius: tokens.radius.card, padding: tokens.spacing.card, shadowColor: tokens.colors.black, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
-  statLabel: { color: tokens.colors.muted, fontSize: tokens.typography.small },
-  statValue: { color: tokens.colors.heading, fontSize: 21, fontWeight: "700", marginTop: 7 },
-  statDelta: { fontSize: tokens.typography.small, marginTop: 5 },
-  positive: { color: tokens.colors.success },
-  negative: { color: tokens.colors.danger },
-  sectionRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 7 },
-  seeAll: { color: tokens.colors.accent, fontSize: tokens.typography.small, fontWeight: "600" },
-  quickCard: { backgroundColor: tokens.colors.warmTint, borderRadius: tokens.radius.card, padding: tokens.spacing.card, borderWidth: 1, borderColor: tokens.colors.warmBorder },
-  quickTitle: { color: tokens.colors.secondaryHeading, fontSize: tokens.typography.screenTitle, fontWeight: "700" },
-  quickBody: { color: tokens.colors.body, fontSize: tokens.typography.body, lineHeight: 21, marginTop: 5 },
-  primaryButton: { backgroundColor: tokens.colors.brown, borderRadius: tokens.radius.pill, alignItems: "center", paddingVertical: 12, marginTop: 12 },
-  primaryButtonText: { color: tokens.colors.white, fontSize: tokens.typography.body, fontWeight: "600" },
-  bottomNav: { backgroundColor: tokens.colors.white, borderTopWidth: 1, borderTopColor: tokens.colors.warmBorder, flexDirection: "row", justifyContent: "space-around", paddingTop: 8, paddingBottom: 6 },
-  navItem: { minHeight: 44, minWidth: 64, alignItems: "center", justifyContent: "center", gap: 2 },
-  navLabel: { color: tokens.colors.muted, fontSize: tokens.typography.small },
-  navLabelActive: { color: tokens.colors.accent, fontWeight: "700" },
-  drawerBackdrop: { flex: 1, flexDirection: "row", backgroundColor: tokens.colors.drawerOverlay },
-  drawer: { width: 250, backgroundColor: tokens.colors.gold, padding: tokens.spacing.screen, paddingTop: 45 },
+  content: { padding: tokens.spacing.screen, paddingBottom: 28, gap: 14 },
+  welcome: {
+    backgroundColor: "#2D1E0C",
+    borderBottomLeftRadius: 36,
+    borderBottomRightRadius: 36,
+    marginHorizontal: -tokens.spacing.screen,
+    marginTop: -tokens.spacing.screen,
+    paddingHorizontal: tokens.spacing.screen + 4,
+    paddingTop: 20,
+    paddingBottom: 28,
+  },
+  welcomeEyebrow: { color: tokens.colors.gold, fontSize: 11, letterSpacing: 1, fontWeight: "700" },
+  welcomeTitle: { color: tokens.colors.white, fontSize: 24, fontWeight: "800", marginTop: 4 },
+  welcomeBody: { color: "rgba(255, 255, 255, 0.8)", fontSize: 13, lineHeight: 19, marginTop: 6 },
+  sectionTitle: { color: tokens.colors.heading, fontSize: 17, fontWeight: "800" },
+  statGrid: { gap: 10 },
+  statCard: {
+    backgroundColor: tokens.colors.white,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.05)",
+    shadowColor: tokens.colors.black,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  statLabel: { color: tokens.colors.muted, fontSize: 11.5, fontWeight: "700", textTransform: "uppercase" },
+  statValue: { color: tokens.colors.heading, fontSize: 22, fontWeight: "800", marginTop: 4 },
+  statDelta: { fontSize: 12, color: tokens.colors.success, fontWeight: "600", marginTop: 4 },
+  sectionRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 6 },
+  seeAll: { color: tokens.colors.accent, fontSize: 13, fontWeight: "700" },
+  quickCard: {
+    backgroundColor: tokens.colors.white,
+    borderRadius: 14,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: tokens.colors.warmBorder,
+    shadowColor: tokens.colors.black,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  quickTitle: { color: tokens.colors.heading, fontSize: 16, fontWeight: "700" },
+  quickBody: { color: tokens.colors.body, fontSize: 13, lineHeight: 19, marginTop: 6 },
+  primaryButton: {
+    backgroundColor: tokens.colors.brown,
+    borderRadius: tokens.radius.pill,
+    alignItems: "center",
+    paddingVertical: 12,
+    marginTop: 14,
+  },
+  primaryButtonText: { color: tokens.colors.white, fontSize: 13.5, fontWeight: "700" },
+  bottomNav: {
+    backgroundColor: tokens.colors.white,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0,0,0,0.08)",
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
+  navItem: { minHeight: 46, minWidth: 64, alignItems: "center", justifyContent: "center", gap: 2 },
+  navLabel: { color: tokens.colors.muted, fontSize: 11, fontWeight: "500" },
+  navLabelActive: { color: tokens.colors.brown, fontWeight: "700" },
+  navDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: tokens.colors.brown, marginTop: 2 },
+  drawerBackdrop: { flex: 1, flexDirection: "row", backgroundColor: "rgba(15,23,42,0.45)" },
+  drawer: { width: 280, backgroundColor: "#FFFBF2", padding: 20, paddingTop: 45 },
   backdropPressable: { flex: 1 },
-  drawerHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 22 },
-  drawerBrand: { color: tokens.colors.brown, fontSize: 20, fontWeight: "800" },
-  drawerClose: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  drawerItem: { minHeight: 50, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderRadius: tokens.radius.small, paddingHorizontal: 12 },
-  drawerItemActive: { backgroundColor: tokens.colors.drawerActive },
-  drawerItemText: { color: tokens.colors.brown, fontSize: tokens.typography.screenTitle, fontWeight: "600" },
-  drawerSignOut: { marginTop: 18, borderTopWidth: 1, borderTopColor: tokens.colors.drawerBorder, paddingTop: 20 },
-  drawerSignOutText: { color: tokens.colors.brown, fontSize: tokens.typography.body, fontWeight: "700" },
+  drawerHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 24, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: "rgba(90,62,27,0.1)" },
+  brandIconCircle: { width: 36, height: 36, borderRadius: 10, backgroundColor: tokens.colors.gold, alignItems: "center", justifyContent: "center" },
+  drawerBrand: { color: "#2D1E0C", fontSize: 18, fontWeight: "800" },
+  drawerSub: { color: tokens.colors.accent, fontSize: 11, fontWeight: "600" },
+  drawerClose: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+  drawerItem: { minHeight: 46, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderRadius: 10, paddingHorizontal: 12, marginBottom: 4 },
+  drawerItemActive: { backgroundColor: "rgba(230, 198, 92, 0.3)" },
+  drawerItemText: { color: "#3D2810", fontSize: 14, fontWeight: "600" },
+  drawerItemTextActive: { color: "#2D1E0C", fontWeight: "800" },
+  drawerSignOut: { marginTop: 14, borderTopWidth: 1, borderTopColor: "rgba(90,62,27,0.1)", paddingTop: 16, flexDirection: "row", alignItems: "center", gap: 10 },
+  drawerSignOutText: { color: tokens.colors.danger, fontSize: 14, fontWeight: "700" },
+  profileAvatar: { width: 76, height: 76, borderRadius: 38, backgroundColor: "rgba(230, 198, 92, 0.25)", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: tokens.colors.gold },
+  profileAvatarText: { fontSize: 26, fontWeight: "800", color: tokens.colors.brown },
+  roleBadgeContainer: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(37, 99, 235, 0.08)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginTop: 6 },
+  roleBadgeText: { fontSize: 12, color: "#1d4ed8", fontWeight: "700" },
+  profileRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  profileField: { color: tokens.colors.muted, fontSize: 12.5 },
+  profileValue: { color: tokens.colors.heading, fontSize: 13, fontWeight: "700" },
+  editContactButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: tokens.colors.white, borderWidth: 1, borderColor: tokens.colors.warmBorder, borderRadius: tokens.radius.pill, paddingVertical: 12 },
+  editContactText: { color: tokens.colors.brown, fontSize: 13.5, fontWeight: "700" },
+  signOutButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: tokens.colors.danger, borderRadius: tokens.radius.pill, paddingVertical: 12 },
+  signOutText: { color: tokens.colors.white, fontSize: 13.5, fontWeight: "700" },
 });

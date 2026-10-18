@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type JSX } from "react";
+import { Building2, Mail, Phone, MapPin, Shield, Plus, X, Cloud, Save, CheckCircle2, Sparkles } from "lucide-react";
 import { Sidebar, MobileNav } from "../../components/Sidebar";
 import { TopHeader } from "../../components/TopHeader";
 
@@ -42,109 +43,182 @@ export default function PengaturanPage(): JSX.Element {
           <div className="page-heading">
             <div>
               <p className="eyebrow">Konfigurasi Sistem</p>
-              <h1>Pengaturan Organisasi</h1>
-              <p className="subtitle">Profil organisasi PMK ITERA, domain email yang diizinkan, dan brand asset.</p>
+              <h1>Pengaturan & Keamanan Organisasi</h1>
+              <p className="subtitle">
+                Profil identitas organisasi PMK ITERA, domain email whitelist Google Workspace, dan aset brand.
+              </p>
             </div>
           </div>
 
           <div className="grid">
-            <form className="card" onSubmit={handleSave}>
+            <form className="card card-hover" onSubmit={handleSave}>
               <div className="card-heading">
-                <h2>Profil PMK ITERA</h2>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ padding: 8, borderRadius: 10, backgroundColor: "rgba(90, 62, 27, 0.08)", color: "var(--color-primary)" }}>
+                    <Building2 size={18} />
+                  </div>
+                  <div>
+                    <h2>Profil Identitas PMK ITERA</h2>
+                    <p style={{ fontSize: 12.5, color: "var(--color-muted)", margin: "2px 0 0" }}>
+                      Informasi resmi yang ditampilkan pada portal dan OIDC consent screen.
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div style={{ display: "grid", gap: 14 }}>
+
+              <div style={{ display: "grid", gap: 16 }}>
                 <div className="form-field">
-                  <label>Nama Organisasi</label>
+                  <label>Nama Resmi Organisasi</label>
                   <input type="text" value={orgName} onChange={(e) => setOrgName(e.target.value)} required />
                 </div>
+
                 <div className="form-field">
                   <label>Email Resmi Organisasi</label>
                   <input type="email" value={orgEmail} onChange={(e) => setOrgEmail(e.target.value)} required />
                 </div>
+
                 <div className="form-field">
-                  <label>Nomor Telepon / WhatsApp Sekretariat</label>
+                  <label>Nomor WhatsApp Sekretariat</label>
                   <input type="text" value={orgPhone} onChange={(e) => setOrgPhone(e.target.value)} />
                 </div>
+
                 <div className="form-field">
                   <label>Alamat Sekretariat</label>
-                  <input type="text" defaultValue="Gedung E ITERA, Jl. Terusan Ryacudu, Way Hui, Jati Agung" />
+                  <input type="text" defaultValue="Gedung E ITERA, Jl. Terusan Ryacudu, Way Hui, Jati Agung, Lampung Selatan" />
                 </div>
               </div>
+
               {savedToast && (
-                <div className="success-message" role="status" style={{ marginTop: 16 }}>
-                  ✓ Pengaturan profil organisasi berhasil disimpan!
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "10px 14px",
+                    borderRadius: 8,
+                    backgroundColor: "rgba(5, 150, 105, 0.1)",
+                    color: "var(--color-positive)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    marginTop: 18,
+                  }}
+                  role="status"
+                >
+                  <CheckCircle2 size={16} />
+                  <span>Pengaturan profil organisasi berhasil disimpan!</span>
                 </div>
               )}
-              <div style={{ marginTop: 20 }}>
-                <button className="button" type="submit">
-                  Simpan Perubahan
+
+              <div style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid rgba(0,0,0,0.06)" }}>
+                <button className="button button-gold" type="submit">
+                  <Save size={15} />
+                  <span>Simpan Perubahan Profil</span>
                 </button>
               </div>
             </form>
 
             <div style={{ display: "grid", gap: 20 }}>
-              <article className="card">
+              {/* Domain Whitelist */}
+              <article className="card card-hover">
                 <div className="card-heading">
-                  <h2>Domain Email Diizinkan (Whitelist)</h2>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ padding: 8, borderRadius: 10, backgroundColor: "rgba(37, 99, 235, 0.08)", color: "#2563eb" }}>
+                      <Shield size={18} />
+                    </div>
+                    <div>
+                      <h2>Domain Whitelist Google Sign-In</h2>
+                      <p style={{ fontSize: 12.5, color: "var(--color-muted)", margin: "2px 0 0" }}>
+                        Hanya akun Google berdomain ini yang diizinkan login (ADR-0005).
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <p style={{ fontSize: 12, color: "var(--color-muted)", margin: "0 0 12px" }}>
-                  Hanya akun Google dengan domain ini yang diizinkan masuk ke ekosistem PMK ITERA (ADR-0005).
-                </p>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
                   {domains.map((d) => (
-                    <span className="badge badge-gold" key={d} style={{ padding: "6px 12px", fontSize: 12 }}>
-                      @{d}
+                    <span
+                      key={d}
+                      className="badge badge-gold"
+                      style={{ padding: "6px 12px", fontSize: 13, display: "inline-flex", alignItems: "center", gap: 8 }}
+                    >
+                      <span>@{d}</span>
                       <button
                         type="button"
-                        style={{ background: "transparent", border: 0, cursor: "pointer", marginLeft: 6, fontWeight: 800 }}
+                        aria-label={`Hapus domain ${d}`}
+                        style={{
+                          background: "transparent",
+                          border: 0,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          color: "inherit",
+                          padding: 0,
+                        }}
                         onClick={() => handleRemoveDomain(d)}
                       >
-                        ×
+                        <X size={13} />
                       </button>
                     </span>
                   ))}
                 </div>
+
                 <div style={{ display: "flex", gap: 8 }}>
                   <input
                     type="text"
                     className="search-input"
-                    style={{ minWidth: 0, flex: 1 }}
-                    placeholder="tambah domain (cth: alumni.itera.ac.id)"
+                    style={{ minWidth: 0, flex: 1, paddingLeft: 12 }}
+                    placeholder="Tambah domain baru (cth: alumni.itera.ac.id)"
                     value={newDomain}
                     onChange={(e) => setNewDomain(e.target.value)}
                   />
                   <button className="button button-secondary" type="button" onClick={handleAddDomain}>
-                    Tambah
+                    <Plus size={15} />
+                    <span>Tambah</span>
                   </button>
                 </div>
               </article>
 
-              <article className="card">
+              {/* Brand Asset */}
+              <article className="card card-hover">
                 <div className="card-heading">
-                  <h2>Logo & Brand Asset</h2>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ padding: 8, borderRadius: 10, backgroundColor: "rgba(5, 150, 105, 0.08)", color: "var(--color-positive)" }}>
+                      <Cloud size={18} />
+                    </div>
+                    <div>
+                      <h2>Brand Asset & Logo Cloudflare R2</h2>
+                      <p style={{ fontSize: 12.5, color: "var(--color-muted)", margin: "2px 0 0" }}>
+                        Penyimpanan avatar anggota dan lambang organisasi terdistribusi.
+                      </p>
+                    </div>
+                  </div>
                 </div>
+
                 <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                   <div
                     style={{
-                      width: 64,
-                      height: 64,
-                      borderRadius: "50%",
-                      background: "var(--color-primary)",
+                      width: 56,
+                      height: 56,
+                      borderRadius: 14,
+                      background: "linear-gradient(135deg, var(--color-primary-dark) 0%, #1a1005 100%)",
                       color: "var(--color-gold)",
-                      display: "grid",
-                      placeItems: "center",
-                      fontSize: 24,
-                      fontWeight: 800,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
                     }}
                   >
-                    ✚
+                    <Sparkles size={24} />
                   </div>
                   <div>
-                    <strong>Logo Utama PMK ITERA</strong>
-                    <p style={{ fontSize: 11, color: "var(--color-muted)", margin: "2px 0 6px" }}>
-                      Format PNG/SVG transparansi tersimpan di Cloudflare R2
+                    <strong style={{ fontSize: 14, color: "var(--color-heading)" }}>Logo Utama PMK ITERA</strong>
+                    <p style={{ fontSize: 12, color: "var(--color-muted)", margin: "2px 0 6px" }}>
+                      Tersimpan secara publik dan cepat via Edge CDN Cloudflare R2.
                     </p>
-                    <span className="badge badge-green">R2 Bucket: pmk-core-avatars</span>
+                    <span className="badge badge-green">
+                      <span className="badge-dot" />
+                      Bucket: pmk-core-avatars (Live)
+                    </span>
                   </div>
                 </div>
               </article>

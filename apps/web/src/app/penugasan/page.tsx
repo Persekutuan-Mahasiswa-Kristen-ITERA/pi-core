@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type JSX } from "react";
+import { Briefcase, Plus, X, Layers, Shield, Trash2, CheckCircle2 } from "lucide-react";
 import { Sidebar, MobileNav } from "../../components/Sidebar";
 import { TopHeader } from "../../components/TopHeader";
 
@@ -18,7 +19,7 @@ const INITIAL_ASSIGNMENTS: AssignmentItem[] = [
   { id: "asg_1", memberName: "Jonathan Sitorus", unitName: "BPH", positionName: "Ketua Umum", rank: 10, periodName: "2026/2027", status: "Aktif" },
   { id: "asg_2", memberName: "Maria Simanjuntak", unitName: "Departemen Pelayanan", positionName: "Sekretaris Departemen", rank: 40, periodName: "2026/2027", status: "Aktif" },
   { id: "asg_3", memberName: "Daniel Hutapea", unitName: "Divisi Ibadah", positionName: "Kepala Divisi", rank: 60, periodName: "2026/2027", status: "Aktif" },
-  { id: "asg_4", memberName: "Grace Lumbantoruan", unitName: "Divisi Media & Kreatif", positionName: "Staff", rank: 70, periodName: "2026/2027", status: "Aktif" },
+  { id: "asg_4", memberName: "Grace Lumbantoruan", unitName: "Divisi Media & Kreatif", positionName: "Staff Divisi", rank: 70, periodName: "2026/2027", status: "Aktif" },
   { id: "asg_5", memberName: "Samuel Nababan", unitName: "Biro Bendahara", positionName: "Bendahara Umum", rank: 30, periodName: "2026/2027", status: "Aktif" },
 ];
 
@@ -27,7 +28,7 @@ export default function PenugasanPage(): JSX.Element {
   const [modal, setModal] = useState(false);
   const [member, setMember] = useState("");
   const [unit, setUnit] = useState("Divisi Ibadah");
-  const [position, setPosition] = useState("Staff");
+  const [position, setPosition] = useState("Staff Divisi");
 
   function handleCreate() {
     if (!member.trim()) return;
@@ -53,46 +54,79 @@ export default function PenugasanPage(): JSX.Element {
         <main className="content">
           <div className="page-heading">
             <div>
-              <p className="eyebrow">Struktur Jabatan</p>
-              <h1>Penugasan Pengurus</h1>
-              <p className="subtitle">Petakan anggota ke jabatan unit organisasi dengan batasan rank hierarki.</p>
+              <p className="eyebrow">Struktur & Hierarki</p>
+              <h1>Penugasan Jabatan Pengurus</h1>
+              <p className="subtitle">
+                Petakan anggota ke jabatan unit organisasi dengan batasan rank hierarki resmi PMK ITERA.
+              </p>
             </div>
-            <button className="button" type="button" onClick={() => setModal(true)}>
-              + Buat Penugasan
+            <button className="button button-gold" type="button" onClick={() => setModal(true)}>
+              <Plus size={16} />
+              <span>Buat Penugasan Baru</span>
             </button>
           </div>
 
-          <div className="card">
+          <div className="card card-hover">
+            <div className="card-heading">
+              <div>
+                <h2>Daftar Penugasan Aktif (Periode 2026/2027)</h2>
+                <p style={{ fontSize: 12.5, color: "var(--color-muted)", margin: "2px 0 0" }}>
+                  Masa jabatan berlaku sepanjang periode aktif berlangsung.
+                </p>
+              </div>
+            </div>
+
             <div className="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Anggota</th>
+                    <th>Pengurus Terpilih</th>
                     <th>Unit Organisasi</th>
                     <th>Posisi Jabatan</th>
                     <th>Rank Hierarki</th>
                     <th>Periode</th>
                     <th>Status</th>
-                    <th>Aksi</th>
+                    <th style={{ textAlign: "right" }}>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
                   {assignments.map((asg) => (
                     <tr key={asg.id}>
-                      <td><strong>{asg.memberName}</strong></td>
-                      <td><span className="badge badge-gold">{asg.unitName}</span></td>
-                      <td><strong>{asg.positionName}</strong></td>
-                      <td>Rank {asg.rank}</td>
-                      <td>{asg.periodName}</td>
-                      <td><span className="status">{asg.status}</span></td>
                       <td>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <div className="avatar avatar-sm">
+                            {asg.memberName.split(" ").map(n => n[0]).slice(0, 2).join("")}
+                          </div>
+                          <strong style={{ fontSize: 14, color: "var(--color-heading)" }}>{asg.memberName}</strong>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="badge badge-gold">{asg.unitName}</span>
+                      </td>
+                      <td>
+                        <strong style={{ color: "var(--color-heading-secondary)" }}>{asg.positionName}</strong>
+                      </td>
+                      <td>
+                        <span className="badge badge-blue">Rank {asg.rank}</span>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: 13, color: "var(--color-body)" }}>{asg.periodName}</span>
+                      </td>
+                      <td>
+                        <span className="badge badge-green">
+                          <span className="badge-dot" />
+                          {asg.status}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: "right" }}>
                         <button
                           className="button button-secondary"
                           type="button"
-                          style={{ minHeight: 32, padding: "4px 10px", fontSize: 11 }}
+                          style={{ minHeight: 32, padding: "4px 10px", fontSize: 12, color: "var(--color-negative)" }}
                           onClick={() => setAssignments((prev) => prev.filter((a) => a.id !== asg.id))}
                         >
-                          Akhiri
+                          <Trash2 size={13} />
+                          <span>Akhiri</span>
                         </button>
                       </td>
                     </tr>
@@ -105,9 +139,15 @@ export default function PenugasanPage(): JSX.Element {
           {modal && (
             <div className="sheet-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) setModal(false); }}>
               <div className="card" style={{ width: 460, margin: "auto", padding: 28 }}>
-                <h2>Buat Penugasan Baru</h2>
-                <p className="subtitle" style={{ marginBottom: 16 }}>Tugaskan anggota ke jabatan unit organisasi.</p>
-                <div style={{ display: "grid", gap: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                  <h2>Buat Penugasan Baru</h2>
+                  <button className="icon-button" type="button" onClick={() => setModal(false)}>
+                    <X size={18} />
+                  </button>
+                </div>
+                <p className="subtitle" style={{ marginBottom: 18 }}>Tugaskan anggota aktif ke unit dan posisi jabatan.</p>
+
+                <div style={{ display: "grid", gap: 14 }}>
                   <div className="form-field">
                     <label>Nama Anggota</label>
                     <input
@@ -125,7 +165,7 @@ export default function PenugasanPage(): JSX.Element {
                       value={unit}
                       onChange={(e) => setUnit(e.target.value)}
                     >
-                      <option value="BPH">BPH</option>
+                      <option value="BPH">BPH (Pusat)</option>
                       <option value="Departemen Pelayanan">Departemen Pelayanan</option>
                       <option value="Divisi Ibadah">Divisi Ibadah</option>
                       <option value="Divisi Doa">Divisi Doa</option>
@@ -144,15 +184,16 @@ export default function PenugasanPage(): JSX.Element {
                     >
                       <option value="Kepala Divisi">Kepala Divisi (Rank 60)</option>
                       <option value="Sekretaris Divisi">Sekretaris Divisi (Rank 65)</option>
-                      <option value="Staff">Staff (Rank 70)</option>
+                      <option value="Staff Divisi">Staff Divisi (Rank 70)</option>
                     </select>
                   </div>
                 </div>
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 24 }}>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 24, paddingTop: 16, borderTop: "1px solid rgba(0,0,0,0.06)" }}>
                   <button className="button button-secondary" type="button" onClick={() => setModal(false)}>
                     Batal
                   </button>
-                  <button className="button" type="button" onClick={handleCreate}>
+                  <button className="button button-gold" type="button" onClick={handleCreate}>
                     Tetapkan Penugasan
                   </button>
                 </div>

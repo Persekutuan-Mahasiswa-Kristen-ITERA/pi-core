@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type JSX } from "react";
+import { Activity, Shield, Filter, Lock, Clock, Globe, Terminal } from "lucide-react";
 import { Sidebar, MobileNav } from "../../components/Sidebar";
 import { TopHeader } from "../../components/TopHeader";
 
@@ -39,46 +40,59 @@ export default function AuditLogPage(): JSX.Element {
           <div className="page-heading">
             <div>
               <p className="eyebrow">Keamanan & Kepatuhan</p>
-              <h1>Audit Log Append-Only</h1>
-              <p className="subtitle">Catatan audit permanen yang tidak dapat diubah maupun dihapus (Anti-Tamper DB Trigger).</p>
+              <h1>Log Audit Keamanan (Append-Only)</h1>
+              <p className="subtitle">
+                Catatan mutasi data permanen yang tidak dapat diubah maupun dihapus (Anti-Tamper DB Trigger aktif).
+              </p>
             </div>
             <span className="badge badge-gold" style={{ padding: "8px 14px", fontSize: 12 }}>
-              🛡️ Immutable DB Trigger Active
+              <Lock size={13} />
+              <span>Immutable Anti-Tamper Trigger Active</span>
             </span>
           </div>
 
           <div className="filter-bar">
-            <span style={{ fontSize: 13, fontWeight: 700 }}>Filter Aksi:</span>
-            {["Semua", "CREATE", "UPDATE", "DELETE", "ACTIVATE", "ROTATE_SECRET"].map((act) => (
-              <button
-                key={act}
-                type="button"
-                className={`button ${filter === act ? "" : "button-secondary"}`}
-                style={{ minHeight: 34, padding: "4px 12px", fontSize: 11 }}
-                onClick={() => setFilter(act)}
-              >
-                {act}
-              </button>
-            ))}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Filter size={15} style={{ color: "var(--color-muted)" }} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-heading)" }}>Filter Aksi:</span>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {["Semua", "CREATE", "UPDATE", "DELETE", "ACTIVATE", "ROTATE_SECRET"].map((act) => (
+                <button
+                  key={act}
+                  type="button"
+                  className={`button ${filter === act ? "button-gold" : "button-secondary"}`}
+                  style={{ minHeight: 32, padding: "4px 12px", fontSize: 12 }}
+                  onClick={() => setFilter(act)}
+                >
+                  {act}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="card">
+          <div className="card card-hover">
             <div className="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Waktu</th>
-                    <th>Aksi</th>
-                    <th>Aktor</th>
+                    <th>Waktu Kejadian</th>
+                    <th>Tipe Aksi</th>
+                    <th>Aktor Pengguna</th>
                     <th>Entitas Target</th>
-                    <th>Rincian Perubahan</th>
+                    <th>Rincian Operasi</th>
                     <th>IP Address</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((a) => (
                     <tr key={a.id}>
-                      <td><span style={{ fontSize: 12, color: "var(--color-muted)" }}>{a.timestamp}</span></td>
+                      <td>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-muted)", fontSize: 12.5 }}>
+                          <Clock size={13} />
+                          <span>{a.timestamp}</span>
+                        </div>
+                      </td>
                       <td>
                         <span
                           className={`badge ${
@@ -91,15 +105,35 @@ export default function AuditLogPage(): JSX.Element {
                               : "badge-gray"
                           }`}
                         >
+                          <span className="badge-dot" />
                           {a.action}
                         </span>
                       </td>
-                      <td><strong>{a.actor}</strong></td>
-                      <td><code>{a.entity}</code></td>
-                      <td style={{ maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <td>
+                        <strong style={{ fontSize: 13.5, color: "var(--color-heading)" }}>{a.actor}</strong>
+                      </td>
+                      <td>
+                        <code
+                          style={{
+                            padding: "3px 8px",
+                            borderRadius: 6,
+                            backgroundColor: "rgba(0,0,0,0.05)",
+                            fontSize: 12,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {a.entity}
+                        </code>
+                      </td>
+                      <td style={{ maxWidth: 360, color: "var(--color-body)", fontSize: 13 }}>
                         {a.details}
                       </td>
-                      <td><span style={{ fontSize: 11, color: "var(--color-muted)" }}>{a.ip}</span></td>
+                      <td>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-muted)", fontSize: 12 }}>
+                          <Globe size={13} />
+                          <span>{a.ip}</span>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
