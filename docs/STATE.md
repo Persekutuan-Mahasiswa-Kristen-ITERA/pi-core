@@ -156,6 +156,27 @@ Workers Free.** Before Epic 4 builds the UI on this, we need a decision (see _In
 
 ## Session notes (newest first)
 
+- **2026-10-18 (Antigravity - Gemini 3.8 Flash):** **Aesthetic & Functional Overhaul of Admin Web & Mobile Complete.**
+  - Installed `lucide-react` in `@pi-core/web` and `@expo/vector-icons` in `@pi-core/mobile`.
+  - Upgraded typography in `apps/web/src/app/layout.tsx` using `Plus_Jakarta_Sans` (headings/wordmark) and `Inter` (body/UI data).
+  - Designed and deployed a SaaS design system in `apps/web/src/app/globals.css` with PMK ITERA brand palette (`#3D2810`, `#5A3E1B`, `#E6C65C`, `#FEF9E7`, `#F8F9FA`), soft drop shadows, glassmorphism (`backdrop-filter: blur(12px)`), refined badges with live indicator dots, and smooth button micro-interactions.
+  - Replaced crude Unicode text glyphs (`⌂`, `♙`, `▣`, `◷`, `⇄`, `⚙`, `≡`, `✎`, `×`, `⌕`) with vector icons across all web and mobile views.
+  - Overhauled Admin Web components:
+    - `Sidebar.tsx`: Luxury dark brown gradient, gold emblem, active indicators with gold glow, edge live indicator.
+    - `TopHeader.tsx`: Breadcrumbs with chevrons, SSE real-time pulse pill, API health status button, user avatar badge.
+    - `page.tsx` (Dashboard): Stat cards with icons, live activity feed, quick navigation pills, OIDC integration status.
+    - `anggota/page.tsx`: Search with icon, unit & status dropdowns, CSV export, slide-over MemberSheet with validation.
+    - `peran/page.tsx`: 10 PMK ITERA role cards with permission badges and scopes (O, U, S).
+    - `periode/page.tsx`: Active period banner with constraint label, period activation actions, and add-period modal.
+    - `penugasan/page.tsx`: Assignment cards with avatars, position rank badges, and assignment creation modal.
+    - `pengaturan/page.tsx`: Organization identity form, email domain whitelist tag pills, and Cloudflare R2 bucket badge.
+    - `audit-log/page.tsx`: Append-only audit table with action filters, actor badges, and IP tracking.
+  - Overhauled Mobile App:
+    - `AuthScreen.tsx`: Modern curved hero with PMK logo, authentic Google login button, QA demo bypass pill, and security trust badge.
+    - `App.tsx`: Refined header, drawer with Ionicons for each module, active bottom navigation indicator dots, and profile editor modal.
+    - `DirectoryScreen.tsx`: Modern search bar, filter chips, member card list with avatar circles, working "+ Tambah Anggota" modal, delete action, and rendered Roles & Periods lists.
+  - Verification: `pnpm --filter @pi-core/web build` passed (10/10 static pages cleanly generated), `pnpm --filter @pi-core/mobile typecheck` passed (0 errors), all 7 web endpoints return HTTP 200.
+
 - **2026-10-18 (Antigravity - Gemini 3.8 Flash):** **Story 6.4 complete & Epic 6 fully verified on staging.** Root cause of previous OAuth E2E failures identified and resolved:
   (1) Better Auth requires the RFC 8707 `resource` parameter to emit a signed JWT access token; without it, an opaque token is minted. Added `resource` to authorize URL, token exchange, and `docs/INTEGRATION-CONTRACT.md`.
   (2) On Cloudflare Workers `*.workers.dev`, in-Worker HTTP subrequests to the worker's own domain (`https://pi-core-api-staging.pmkitera.workers.dev/api/auth/jwks`) fail with loopback 404. Resolved by exporting `loadJwks(db)` in `packages/db/src/oauth-access.ts` to load active public keys directly from the `jwks` table in-process without network overhead.
