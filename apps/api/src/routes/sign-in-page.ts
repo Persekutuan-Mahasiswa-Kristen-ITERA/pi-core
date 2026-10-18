@@ -93,6 +93,9 @@ signInPageRoutes.get("/", (c) => {
     : "/sign-in";
 
   if (actor !== undefined && email !== undefined) {
+    if (isMobile) {
+      return c.redirect(callbackUrl);
+    }
     const roles =
       actor.roles.length > 0
         ? actor.roles.map((r) => `<span class="role">${escapeHtml(r)}</span>`).join("")
