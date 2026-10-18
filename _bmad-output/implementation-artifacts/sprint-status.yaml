@@ -91,12 +91,12 @@ development_status:
   6-4-integrations-screen-connection-status-pi-nexus-contract: done
   epic-6-retrospective: optional
 
-  epic-7: backlog
-  7-1-security-hardening-pass: backlog
-  7-2-end-to-end-tests: backlog
-  7-3-performance-a11y-verification: backlog
-  7-4-observability: backlog
-  7-5-release-runbook-store-builds: backlog
+  epic-7: done
+  7-1-security-hardening-pass: done
+  7-2-end-to-end-tests: done
+  7-3-performance-a11y-verification: done
+  7-4-observability: done
+  7-5-release-runbook-store-builds: done
   epic-7-retrospective: optional
 
   epic-8: backlog

@@ -1,9 +1,11 @@
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import type { AppEnv } from "./env";
 import { errorBody, toErrorResponse } from "./http/errors";
 import { corsMiddleware } from "./middleware/cors";
-import { authRateLimit } from "./middleware/rate-limit";
+import { authRateLimit, writeRateLimit } from "./middleware/rate-limit";
 import { requestIdMiddleware } from "./middleware/request-id";
+import { requestLoggerMiddleware } from "./middleware/request-logger";
 import { securityHeadersMiddleware } from "./middleware/security-headers";
 import { authRoutes } from "./routes/auth";
 import { assignmentRoutes } from "./routes/assignments";
@@ -39,11 +41,20 @@ export const app = new Hono<AppEnv>();
  *    to quote it (FR-51).
  * 2. Security headers and CORS next, so they apply to error responses too. A 403 that omits the headers
  *    is still a response a browser will act on.
- * 3. Routes last.
+ * 3. Request body size limit (NFR-11) — protects against payload exhaustion before consuming Worker CPU.
+ * 4. Routes last.
  */
 app.use("*", requestIdMiddleware);
+app.use("*", requestLoggerMiddleware);
 app.use("*", securityHeadersMiddleware);
 app.use("*", corsMiddleware);
+app.use(
+  "*",
+  bodyLimit({
+    maxSize: 1024 * 1024, // 1 MiB max body size (NFR-11)
+    onError: (c) => c.json(errorBody(c, "payload_too_large"), 413),
+  }),
+);
 
 app.get("/", (c) =>
   c.json({
@@ -58,14 +69,23 @@ app.route("/", oidcRoutes);
 app.route("/api/v1", healthRoutes);
 
 /**
- * Rate limits (FR-53). Applied to the endpoints where guessing or flooding actually pays: starting a
- * sign-in, completing the OAuth callback, and the mobile code exchange. Deliberately **not** applied to
- * `/api/auth/get-session`, which every page load calls and which gives an attacker nothing.
+ * Rate limits (FR-53, NFR-11). Applied to the endpoints where guessing or flooding actually pays:
+ * starting a sign-in, completing the OAuth callback, exchanging mobile codes, OIDC token requests,
+ * and API mutations. Deliberately **not** applied to `/api/auth/get-session`, which every page load
+ * calls and which gives an attacker nothing.
  */
 app.use("/api/auth/sign-in/*", authRateLimit);
 app.use("/api/auth/callback/*", authRateLimit);
+app.use("/api/auth/oauth2/token", authRateLimit);
 app.use("/api/v1/auth/mobile/finish", authRateLimit);
 app.use("/api/v1/auth/mobile/exchange", authRateLimit);
+
+app.use("/api/v1/*", async (c, next) => {
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(c.req.method)) {
+    return writeRateLimit(c, next);
+  }
+  return next();
+});
 
 // Better Auth owns /api/auth/* (ADR-0007). Mounted as a sub-app so nested paths like
 // /api/auth/sign-in/social are covered — see routes/auth.ts.

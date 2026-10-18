@@ -104,4 +104,17 @@ describe("story 4.1 — API conventions", () => {
     const body = (await root.json()) as { service: string };
     expect(body.service).toBe("pi-core-api");
   });
+
+  it("rejects an oversized request body with 413 payload_too_large (NFR-11)", async () => {
+    const hugeBody = "a".repeat(1024 * 1024 + 10);
+    const res = await call("/api/v1/anything", {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: hugeBody,
+    });
+    expect(res.status).toBe(413);
+    const body = (await res.json()) as { error: { code: string; message: string; requestId: string } };
+    expect(body.error.code).toBe("payload_too_large");
+    expect(body.error.requestId).not.toBe("");
+  });
 });

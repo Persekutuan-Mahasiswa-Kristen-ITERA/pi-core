@@ -26,6 +26,7 @@ const NON_ROUTE_CALLS: readonly string[] = [
   // Hono context reads inside middleware / handlers, not routes.
   "middleware/authorization.ts GET actor",
   "middleware/session.ts GET requestId",
+  "middleware/request-logger.ts GET requestId",
   "routes/auth.ts GET auth",
   "routes/oidc.ts GET auth",
   "routes/integrations.ts GET auth",
