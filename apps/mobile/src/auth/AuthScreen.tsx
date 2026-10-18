@@ -11,10 +11,11 @@ type AuthScreenProps = {
   errorMessage?: string | undefined;
   loading?: boolean;
   onGooglePress: () => void;
+  onDemoPress?: () => void;
 };
 
 /** Google-only admission screen. Password/email fields are intentionally absent (D1). */
-export function AuthScreen({ errorMessage, loading = false, onGooglePress }: AuthScreenProps) {
+export function AuthScreen({ errorMessage, loading = false, onGooglePress, onDemoPress }: AuthScreenProps) {
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
@@ -36,6 +37,16 @@ export function AuthScreen({ errorMessage, loading = false, onGooglePress }: Aut
           <Text style={styles.googleMark}>G</Text>
           <Text style={styles.googleLabel}>{loading ? "Menghubungkan…" : "Masuk dengan Google"}</Text>
         </Pressable>
+        {onDemoPress ? (
+          <Pressable
+            accessibilityLabel="Masuk Mode Demo / QA"
+            accessibilityRole="button"
+            onPress={onDemoPress}
+            style={({ pressed }) => [styles.demoButton, pressed && styles.pressed]}
+          >
+            <Text style={styles.demoLabel}>⚡ Masuk Mode Demo / QA (Bypass)</Text>
+          </Pressable>
+        ) : null}
         <Text style={styles.note}>Gunakan akun Google ITERA yang sudah diundang.</Text>
       </View>
     </View>
@@ -73,6 +84,8 @@ const styles = StyleSheet.create({
   googleButton: { minHeight: 49, width: "100%", backgroundColor: tokens.colors.brown, borderRadius: tokens.radius.pill, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, marginTop: 28, paddingHorizontal: 18 },
   googleMark: { color: tokens.colors.white, fontSize: 18, fontWeight: "800" },
   googleLabel: { color: tokens.colors.white, fontSize: 14, fontWeight: "600" },
+  demoButton: { minHeight: 45, width: "100%", borderWidth: 1, borderColor: tokens.colors.accent, backgroundColor: "rgba(161, 89, 18, 0.08)", borderRadius: tokens.radius.pill, flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 12, paddingHorizontal: 18 },
+  demoLabel: { color: tokens.colors.accent, fontSize: 13, fontWeight: "700" },
   note: { color: tokens.colors.muted, fontSize: 12, textAlign: "center", marginTop: 18 },
   pressed: { opacity: 0.82 },
   disabled: { opacity: 0.6 },

@@ -127,7 +127,29 @@ td strong { color: var(--color-heading-secondary); }
 .integration-details { display: grid; gap: 10px; margin: 18px 0 0; }
 .integration-details div { display: grid; gap: 2px; }
 .integration-details dt { color: var(--color-muted); font-size: 11px; font-weight: 800; text-transform: uppercase; }
-.integration-details dd { margin: 0; color: var(--color-body); font-size: 12px; overflow-wrap: anywhere; }
+.nav-button {
+  display: flex; width: 100%; min-height: 44px; align-items: center; gap: 12px;
+  border: 0; border-radius: 10px; background: transparent; padding: 10px 12px;
+  color: rgba(255,255,255,.78); font-weight: 600; text-align: left; cursor: pointer;
+}
+.nav-button:hover, .nav-button[aria-current="page"] { background: rgba(255,255,255,.14); color: var(--color-on-primary); }
+.nav-button[aria-current="page"] { border-left: 3px solid var(--color-gold); padding-left: 9px; }
+
+.filter-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 20px; }
+.search-input { min-height: 40px; border: 1px solid var(--color-warm-border); border-radius: 8px; background: var(--color-surface); padding: 8px 14px; font-size: 13px; min-width: 260px; color: var(--color-heading); }
+.select-input { min-height: 40px; border: 1px solid var(--color-warm-border); border-radius: 8px; background: var(--color-surface); padding: 8px 12px; font-size: 13px; color: var(--color-heading); }
+
+.role-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.badge { display: inline-flex; align-items: center; gap: 4px; border-radius: var(--radius-pill); padding: 3px 8px; font-size: 11px; font-weight: 700; }
+.badge-gold { background: rgba(230,198,92,.2); color: #855e05; }
+.badge-blue { background: rgba(59,130,246,.1); color: #2563eb; }
+.badge-green { background: rgba(5,150,105,.1); color: var(--color-positive); }
+.badge-gray { background: rgba(100,116,139,.1); color: var(--color-muted); }
+
+.period-banner { background: linear-gradient(135deg, rgba(161,89,18,0.06), rgba(230,198,92,0.12)); border: 1px solid var(--color-gold); border-radius: var(--radius-card); padding: 24px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; }
+.audit-item { padding: 16px; border-bottom: 1px solid rgba(161,89,18,.1); }
+.audit-item:last-child { border-bottom: 0; }
+
 .mobile-nav { display: none; }
 @media (max-width: 900px) {
   .sidebar { width: 216px; }

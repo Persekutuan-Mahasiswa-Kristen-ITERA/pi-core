@@ -56,7 +56,17 @@ function Field({ label, name, value, onChange, error, type = "text", required = 
   );
 }
 
-export function MemberSheet({ canCreate = true, mode = "create", initialValues = initialForm }: { canCreate?: boolean; mode?: "create" | "edit"; initialValues?: MemberForm }): JSX.Element {
+export function MemberSheet({
+  canCreate = true,
+  mode = "create",
+  initialValues = initialForm,
+  onSave,
+}: {
+  canCreate?: boolean;
+  mode?: "create" | "edit";
+  initialValues?: MemberForm;
+  onSave?: (form: MemberForm) => void;
+}): JSX.Element {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<MemberForm>(initialValues);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -72,7 +82,16 @@ export function MemberSheet({ canCreate = true, mode = "create", initialValues =
     event.preventDefault();
     const nextErrors = validate(form);
     setErrors(nextErrors);
-    setSaved(Object.keys(nextErrors).length === 0);
+    if (Object.keys(nextErrors).length === 0) {
+      setSaved(true);
+      if (onSave) {
+        onSave(form);
+      }
+      setTimeout(() => {
+        setOpen(false);
+        setSaved(false);
+      }, 700);
+    }
   }
 
   if (!canCreate) {
@@ -84,7 +103,7 @@ export function MemberSheet({ canCreate = true, mode = "create", initialValues =
       <button className="button member-sheet-trigger" type="button" onClick={() => { setForm(initialValues); setErrors({}); setOpen(true); setSaved(false); }}>{mode === "create" ? "+ Tambah Anggota" : "Ubah Anggota"}</button>
       {open ? <div className="sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
         <aside className="member-sheet" role="dialog" aria-modal="true" aria-labelledby="member-sheet-title">
-          <div className="sheet-heading"><div><p className="eyebrow">Direktori</p><h2 id="member-sheet-title">{mode === "create" ? "Tambah Anggota" : "Ubah Anggota"}</h2><p className="subtitle">Lengkapi data anggota baru.</p></div><button className="icon-button" type="button" aria-label="Tutup formulir" onClick={() => setOpen(false)}>×</button></div>
+          <div className="sheet-heading"><div><p className="eyebrow">Direktori</p><h2 id="member-sheet-title">{mode === "create" ? "Tambah Anggota" : "Ubah Anggota"}</h2><p className="subtitle">Lengkapi data anggota.</p></div><button className="icon-button" type="button" aria-label="Tutup formulir" onClick={() => setOpen(false)}>×</button></div>
           <form onSubmit={submit} noValidate>
             <div className="form-grid">
               <Field label="Nama lengkap" name="fullName" value={form.fullName} onChange={update} error={errors.fullName} required />
@@ -95,7 +114,7 @@ export function MemberSheet({ canCreate = true, mode = "create", initialValues =
               <Field label="Program studi" name="studyProgram" value={form.studyProgram} onChange={update} error={errors.studyProgram} />
               <Field label="Nomor telepon" name="phone" value={form.phone} onChange={update} error={errors.phone} type="tel" />
             </div>
-            {saved ? <div className="success-message" role="status">Validasi berhasil. Data siap dikirim ke API.</div> : null}
+            {saved ? <div className="success-message" role="status">✓ Berhasil disimpan!</div> : null}
             <div className="sheet-actions"><button className="button button-secondary" type="button" onClick={() => setOpen(false)}>Batal</button><button className="button" type="submit">Simpan Anggota</button></div>
           </form>
         </aside>
