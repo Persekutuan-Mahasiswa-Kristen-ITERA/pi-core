@@ -1,6 +1,9 @@
+"use client";
+
 import { MemberSheet } from "./member-sheet";
 import { IntegrationsPanel } from "./integrations";
-import type { JSX } from "react";
+import { RealtimeStatusIndicator, useRealtime } from "./realtime";
+import { type JSX, useState } from "react";
 
 const navItems = [
   ["⌂", "Dashboard"],
@@ -66,12 +69,46 @@ function ErrorState() {
 }
 
 export default function HomePage(): JSX.Element {
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "https://pi-core-api-staging.pmkitera.workers.dev";
+  const [liveActivities, setLiveActivities] = useState<Array<{ id: string; text: string; time: string }>>([]);
+
+  const { status } = useRealtime({
+    apiBaseUrl,
+    onEvent: (event) => {
+      let description = `Pembaruan data pada ${event.topic} (${event.action})`;
+      if (event.topic === "members") {
+        description = `Data anggota diperbarui (${event.action})`;
+      } else if (event.topic === "periods") {
+        description = `Periode organisasi diperbarui (${event.action})`;
+      } else if (event.topic === "integrations") {
+        description = `Integrasi OAuth diperbarui (${event.action})`;
+      } else if (event.topic === "assignments") {
+        description = `Penugasan organisasi diperbarui (${event.action})`;
+      } else if (event.topic === "roles") {
+        description = `Peran atau hak akses diperbarui (${event.action})`;
+      } else if (event.topic === "settings") {
+        description = `Pengaturan organisasi diperbarui (${event.action})`;
+      }
+      setLiveActivities((prev) => [
+        {
+          id: `${event.topic}-${event.id}-${Date.now()}`,
+          text: description,
+          time: "Baru saja",
+        },
+        ...prev.slice(0, 4),
+      ]);
+    },
+  });
+
   return (
     <div className="shell" id="dashboard">
       <Sidebar />
       <div className="main">
         <header className="topbar">
-          <div className="breadcrumb"><strong>Dashboard</strong> <span aria-hidden="true">/</span> Ringkasan organisasi</div>
+          <div className="breadcrumb" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div><strong>Dashboard</strong> <span aria-hidden="true">/</span> Ringkasan organisasi</div>
+            <RealtimeStatusIndicator status={status} />
+          </div>
           <div className="user-menu"><span className="avatar" aria-hidden="true">FA</span><span><strong style={{ color: "var(--color-heading-secondary)" }}>Admin</strong><br /><span className="breadcrumb">Super Admin</span></span></div>
         </header>
         <main className="content">
@@ -91,8 +128,38 @@ export default function HomePage(): JSX.Element {
             </article>
             <article className="card"><div className="card-heading"><h2>Akses cepat</h2></div><div style={{ display: "grid", gap: 10 }}><a className="button button-secondary" href="#anggota">Kelola Anggota</a><a className="button button-secondary" href="#penugasan">Buat Penugasan</a><a className="button button-secondary" href="#periode">Atur Periode</a></div></article>
           </section>
-          <section className="card" style={{ marginTop: 24 }} aria-labelledby="activity-title"><div className="card-heading"><h2 id="activity-title">Aktivitas terakhir</h2><a className="text-link" href="#audit-log">Buka audit log →</a></div><ul className="activity-list"><li className="activity"><span className="activity-dot" aria-hidden="true" /><div><p><strong>Maria Simanjuntak</strong> ditambahkan sebagai anggota baru.</p><time>Hari ini, 09:42</time></div></li><li className="activity"><span className="activity-dot" aria-hidden="true" /><div><p><strong>Periode 2026/2027</strong> diaktifkan.</p><time>Kemarin, 16:20</time></div></li></ul></section>
-          <section className="card" style={{ marginTop: 24 }} id="integrations"><IntegrationsPanel apiBaseUrl={process.env.NEXT_PUBLIC_API_URL ?? "https://pi-core-api-staging.pmkitera.workers.dev"} /></section>
+          <section className="card" style={{ marginTop: 24 }} aria-labelledby="activity-title">
+            <div className="card-heading">
+              <h2 id="activity-title">Aktivitas terakhir (Live)</h2>
+              <a className="text-link" href="#audit-log">Buka audit log →</a>
+            </div>
+            <ul className="activity-list">
+              {liveActivities.map((act) => (
+                <li className="activity" key={act.id}>
+                  <span className="activity-dot" style={{ backgroundColor: "#10b981" }} aria-hidden="true" />
+                  <div>
+                    <p><strong>{act.text}</strong></p>
+                    <time>{act.time}</time>
+                  </div>
+                </li>
+              ))}
+              <li className="activity">
+                <span className="activity-dot" aria-hidden="true" />
+                <div>
+                  <p><strong>Maria Simanjuntak</strong> ditambahkan sebagai anggota baru.</p>
+                  <time>Hari ini, 09:42</time>
+                </div>
+              </li>
+              <li className="activity">
+                <span className="activity-dot" aria-hidden="true" />
+                <div>
+                  <p><strong>Periode 2026/2027</strong> diaktifkan.</p>
+                  <time>Kemarin, 16:20</time>
+                </div>
+              </li>
+            </ul>
+          </section>
+          <section className="card" style={{ marginTop: 24 }} id="integrations"><IntegrationsPanel apiBaseUrl={apiBaseUrl} /></section>
           <details style={{ marginTop: 24 }}><summary style={{ cursor: "pointer", color: "var(--color-muted)" }}>Preview state components (QA)</summary><div className="grid" style={{ marginTop: 12 }}><LoadingState /><EmptyState /><ErrorState /></div></details>
         </main>
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent, type JSX } from "react";
+import { useRealtime } from "./realtime";
 
 type Integration = {
   clientId: string;
@@ -45,6 +46,15 @@ export function IntegrationsPanel({ apiBaseUrl }: Props): JSX.Element {
     });
     return () => controller.abort();
   }, [apiBaseUrl]);
+
+  useRealtime({
+    apiBaseUrl,
+    onEvent: (event) => {
+      if (event.topic === "integrations") {
+        void loadIntegrations();
+      }
+    },
+  });
 
   async function createIntegration(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();

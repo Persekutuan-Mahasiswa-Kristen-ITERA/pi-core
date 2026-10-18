@@ -9,6 +9,7 @@
  * would make the catalog unreachable by being swallowed as a role id.
  */
 import { createRole, getRole, listRoles, permissionCatalog, RoleError, updateRole } from "@pi-core/db";
+import { createRealtimeEvent } from "@pi-core/shared";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -17,6 +18,7 @@ import { conflict, forbidden, notFound } from "../http/errors";
 import { parseJson } from "../http/validate";
 import { requirePermission } from "../middleware/authorization";
 import { sessionMiddleware } from "../middleware/session";
+import { publishRealtimeEvent } from "../realtime/publisher";
 
 export const roleRoutes = new Hono<AppEnv>();
 
@@ -84,7 +86,9 @@ roleRoutes.post("/", requirePermission("role:manage"), async (c) => {
 
   const body = await parseJson(c, createBody);
   try {
-    return c.json({ role: await createRole(db, { actor, input: body, request: requestFacts(c) }) }, 201);
+    const role = await createRole(db, { actor, input: body, request: requestFacts(c) });
+    await publishRealtimeEvent(c, createRealtimeEvent("roles", "role", role.id, "created"));
+    return c.json({ role }, 201);
   } catch (error) {
     return roleFailure(error);
   }
@@ -106,7 +110,9 @@ roleRoutes.patch("/:id", requirePermission("role:manage"), async (c) => {
 
   const body = await parseJson(c, updateBody);
   try {
-    return c.json({ role: await updateRole(db, { actor, id: c.req.param("id"), input: body, request: requestFacts(c) }) });
+    const role = await updateRole(db, { actor, id: c.req.param("id"), input: body, request: requestFacts(c) });
+    await publishRealtimeEvent(c, createRealtimeEvent("roles", "role", role.id, "updated"));
+    return c.json({ role });
   } catch (error) {
     return roleFailure(error);
   }

@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-
 
 import { ScreenState } from "../components/ScreenState";
 import { checkApiHealth } from "../api/client";
+import { useMobileRealtime } from "../realtime/useRealtime";
 import { tokens } from "../theme/tokens";
 
 type DirectoryTab = "Members" | "Roles" | "Periods";
@@ -52,6 +53,17 @@ export function DirectoryScreen({ canManage = true }: { canManage?: boolean }) {
       if (!(error instanceof Error && error.name === "AbortError")) setViewState("offline");
     }).finally(() => clearTimeout(timeout));
   }
+
+  useMobileRealtime({
+    onEvent: (event) => {
+      if (["members", "periods", "roles"].includes(event.topic)) {
+        retryHealthCheck();
+      }
+    },
+    onResync: () => {
+      retryHealthCheck();
+    },
+  });
 
   if (viewState !== "ready") {
     return <ScreenState kind={viewState} onRetry={retryHealthCheck} />;

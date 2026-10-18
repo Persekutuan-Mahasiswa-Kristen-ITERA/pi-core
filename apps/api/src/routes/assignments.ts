@@ -16,6 +16,7 @@ import {
   listPositions,
   updateAssignment,
 } from "@pi-core/db";
+import { createRealtimeEvent } from "@pi-core/shared";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -24,6 +25,7 @@ import { conflict, forbidden, notFound } from "../http/errors";
 import { parseJson, parseQuery } from "../http/validate";
 import { requirePermission } from "../middleware/authorization";
 import { sessionMiddleware } from "../middleware/session";
+import { publishRealtimeEvent } from "../realtime/publisher";
 
 export const assignmentRoutes = new Hono<AppEnv>();
 
@@ -109,7 +111,9 @@ assignmentRoutes.post("/", requirePermission("assignment:manage"), async (c) => 
 
   const body = await parseJson(c, createBody);
   try {
-    return c.json({ assignment: await createAssignment(db, { actor, input: body, request: requestFacts(c) }) }, 201);
+    const assignment = await createAssignment(db, { actor, input: body, request: requestFacts(c) });
+    await publishRealtimeEvent(c, createRealtimeEvent("assignments", "assignment", assignment.id, "created"));
+    return c.json({ assignment }, 201);
   } catch (error) {
     return assignmentFailure(error);
   }
@@ -132,9 +136,9 @@ assignmentRoutes.patch("/:id", requirePermission("assignment:manage"), async (c)
 
   const body = await parseJson(c, updateBody);
   try {
-    return c.json({
-      assignment: await updateAssignment(db, { actor, id: c.req.param("id"), input: body, request: requestFacts(c) }),
-    });
+    const assignment = await updateAssignment(db, { actor, id: c.req.param("id"), input: body, request: requestFacts(c) });
+    await publishRealtimeEvent(c, createRealtimeEvent("assignments", "assignment", assignment.id, "updated"));
+    return c.json({ assignment });
   } catch (error) {
     return assignmentFailure(error);
   }

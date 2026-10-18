@@ -19,6 +19,10 @@ import { createAuth } from "../auth";
 import type { AppEnv } from "../env";
 
 export const sessionMiddleware = createMiddleware<AppEnv>(async (c, next) => {
+  if (!c.env.HYPERDRIVE) {
+    return next();
+  }
+
   await withDb(c.env.HYPERDRIVE, async (db) => {
     const auth = createAuth(db, c.env);
     c.set("auth", auth);
@@ -26,7 +30,13 @@ export const sessionMiddleware = createMiddleware<AppEnv>(async (c, next) => {
     // (Hyperdrive owns pooling — ADR-0009).
     c.set("db", db);
 
-    const session = await auth.api.getSession({ headers: c.req.raw.headers });
+    const headers = new Headers(c.req.raw.headers);
+    const queryToken = c.req.query("token");
+    if (queryToken && !headers.has("cookie") && !headers.has("authorization")) {
+      headers.set("cookie", `better-auth.session_token=${queryToken}`);
+    }
+
+    const session = await auth.api.getSession({ headers });
 
     if (session !== null) {
       // `exactOptionalPropertyTypes` is on, so absent headers must be omitted rather than passed as

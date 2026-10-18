@@ -7,6 +7,7 @@
  * dates must not change anyone's access.
  */
 import { activatePeriod, createPeriod, listPeriods, PeriodError, updatePeriod } from "@pi-core/db";
+import { createRealtimeEvent } from "@pi-core/shared";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -15,6 +16,7 @@ import { badRequest, conflict, notFound } from "../http/errors";
 import { parseJson } from "../http/validate";
 import { requirePermission } from "../middleware/authorization";
 import { sessionMiddleware } from "../middleware/session";
+import { publishRealtimeEvent } from "../realtime/publisher";
 
 export const periodRoutes = new Hono<AppEnv>();
 
@@ -75,6 +77,7 @@ periodRoutes.post("/", requirePermission("period:manage"), async (c) => {
   const body = await parseJson(c, createBody);
   try {
     const period = await createPeriod(db, { actor, input: body, request: requestFacts(c) });
+    await publishRealtimeEvent(c, createRealtimeEvent("periods", "period", period.id, "created"));
     return c.json({ period }, 201);
   } catch (error) {
     return periodFailure(error);
@@ -89,6 +92,7 @@ periodRoutes.patch("/:id", requirePermission("period:manage"), async (c) => {
   const body = await parseJson(c, updateBody);
   try {
     const period = await updatePeriod(db, { actor, id: c.req.param("id"), input: body, request: requestFacts(c) });
+    await publishRealtimeEvent(c, createRealtimeEvent("periods", "period", period.id, "updated"));
     return c.json({ period });
   } catch (error) {
     return periodFailure(error);
@@ -102,6 +106,7 @@ periodRoutes.post("/:id/activate", requirePermission("period:activate"), async (
 
   try {
     const result = await activatePeriod(db, { actor, id: c.req.param("id"), request: requestFacts(c) });
+    await publishRealtimeEvent(c, createRealtimeEvent("periods", "period", result.activated.id, "activated"));
     // Both sides are returned: the caller should be able to see which period they just replaced, because
     // this single call changed what every scoped query in the system returns.
     return c.json({ period: result.activated, replaced: result.deactivated });

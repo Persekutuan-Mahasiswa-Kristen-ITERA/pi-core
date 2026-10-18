@@ -23,6 +23,7 @@ import { periodRoutes } from "./routes/periods";
 import { roleRoutes } from "./routes/roles";
 import { signInPageRoutes } from "./routes/sign-in-page";
 import { settingsRoutes } from "./routes/settings";
+import { realtimeRoutes } from "./routes/realtime";
 
 /**
  * The PI-CORE API Worker (ADR-0013, spine AD-17).
@@ -129,6 +130,9 @@ app.route("/api/v1/integrations", integrationRoutes);
 
 // Audit log (story 4.10). `audit:read` guards it; the O-scope requirement is enforced in the db layer.
 app.route("/api/v1/audit", auditRoutes);
+
+// Real-time notification hub (ADR-0011, Epic 8). WebSocket + SSE fallback.
+app.route("/api/v1/realtime", realtimeRoutes);
 
 // The uniform envelope applies to the two responses Hono produces without a route (FR-51).
 app.notFound((c) => c.json(errorBody(c, "not_found"), 404));

@@ -13,7 +13,7 @@
  * under a `branding/` prefix. Serving it is public: a logo is branding, not personal data, and the bucket
  * stays private (FR-41) with the API as the only way in.
  */
-import { detectImageType, stripImageMetadata } from "@pi-core/shared";
+import { createRealtimeEvent, detectImageType, stripImageMetadata } from "@pi-core/shared";
 import {
   addAllowedDomain,
   getOrgSettings,
@@ -30,8 +30,10 @@ import { conflict, notFound } from "../http/errors";
 import { parseJson } from "../http/validate";
 import { requirePermission } from "../middleware/authorization";
 import { sessionMiddleware } from "../middleware/session";
+import { publishRealtimeEvent } from "../realtime/publisher";
 
 export const settingsRoutes = new Hono<AppEnv>();
+settingsRoutes.use("*", sessionMiddleware);
 
 /** 512 KiB. A logo is displayed small; anything larger is a mistake. */
 const MAX_LOGO_BYTES = 512 * 1024;
@@ -82,7 +84,9 @@ settingsRoutes.post("/domains", requirePermission("settings:manage"), async (c) 
   if (db === undefined || actor === undefined) throw notFound();
   const body = await parseJson(c, domainBody);
   try {
-    return c.json({ domain: await addAllowedDomain(db, { actor, input: body, request: requestFacts(c) }) }, 201);
+    const domain = await addAllowedDomain(db, { actor, input: body, request: requestFacts(c) });
+    await publishRealtimeEvent(c, createRealtimeEvent("settings", "allowed_domain", domain.id, "created"));
+    return c.json({ domain }, 201);
   } catch (error) {
     return settingsFailure(error);
   }
@@ -99,9 +103,9 @@ settingsRoutes.patch("/domains/:id", requirePermission("settings:manage"), async
   if (db === undefined || actor === undefined) throw notFound();
   const body = await parseJson(c, domainPatch);
   try {
-    return c.json({
-      domain: await updateAllowedDomain(db, { actor, id: c.req.param("id"), input: body, request: requestFacts(c) }),
-    });
+    const domain = await updateAllowedDomain(db, { actor, id: c.req.param("id"), input: body, request: requestFacts(c) });
+    await publishRealtimeEvent(c, createRealtimeEvent("settings", "allowed_domain", c.req.param("id"), "updated"));
+    return c.json({ domain });
   } catch (error) {
     return settingsFailure(error);
   }
@@ -127,7 +131,9 @@ settingsRoutes.patch("/org", requirePermission("settings:manage"), async (c) => 
   if (db === undefined || actor === undefined) throw notFound();
   const body = await parseJson(c, orgBody);
   try {
-    return c.json({ settings: await updateOrgSettings(db, { actor, input: body, request: requestFacts(c) }) });
+    const settings = await updateOrgSettings(db, { actor, input: body, request: requestFacts(c) });
+    await publishRealtimeEvent(c, createRealtimeEvent("settings", "org_settings", "global", "updated"));
+    return c.json({ settings });
   } catch (error) {
     return settingsFailure(error);
   }
@@ -166,6 +172,7 @@ settingsRoutes.put("/org/logo", requirePermission("settings:manage"), async (c) 
   await c.env.AVATARS.put(key, stripped, { httpMetadata: { contentType: declared } });
 
   const settings = await updateOrgSettings(db, { actor, input: { logoKey: key }, request: requestFacts(c) });
+  await publishRealtimeEvent(c, createRealtimeEvent("settings", "org_logo", "global", "updated"));
   return c.json({ settings, metadata: { strippedBytes: body.byteLength - stripped.length, bytes: stripped.length } });
 });
 

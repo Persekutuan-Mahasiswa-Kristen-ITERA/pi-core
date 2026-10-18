@@ -1,4 +1,5 @@
 import { oauthAccessTokens, oauthClients, writeAudit } from "@pi-core/db";
+import { createRealtimeEvent } from "@pi-core/shared";
 import { desc, eq } from "drizzle-orm";
 import type { Context } from "hono";
 import { Hono } from "hono";
@@ -8,6 +9,7 @@ import { conflict, notFound } from "../http/errors";
 import { parseJson } from "../http/validate";
 import { requirePermission } from "../middleware/authorization";
 import { sessionMiddleware } from "../middleware/session";
+import { publishRealtimeEvent } from "../realtime/publisher";
 import { getIntegrationConnectionStatus } from "./integration-status";
 
 export const integrationRoutes = new Hono<AppEnv>();
@@ -125,6 +127,7 @@ integrationRoutes.post("/", requirePermission("integration:manage"), async (c) =
     entityId: client.client_id,
     after: { clientId: client.client_id, name: body.name, redirectUris: body.redirectUris, scopes: body.scopes },
   });
+  await publishRealtimeEvent(c, createRealtimeEvent("integrations", "integration", client.client_id, "created"));
   return c.json({ integration: created }, 201);
 });
 
@@ -157,6 +160,7 @@ integrationRoutes.patch("/:clientId", requirePermission("integration:manage"), a
     before: { disabled: existing[0].disabled, redirectUris: existing[0].redirectUris, scopes: existing[0].scopes },
     after: { disabled: result.disabled, redirectUris: result.redirectUris, scopes: result.scopes },
   });
+  await publishRealtimeEvent(c, createRealtimeEvent("integrations", "integration", clientId, "updated"));
   return c.json({ integration: { ...result, clientSecret: undefined } });
 });
 
@@ -174,6 +178,7 @@ integrationRoutes.post("/:clientId/rotate-secret", requirePermission("integratio
     entityId: clientId,
     after: { clientId, secretRotated: true },
   });
+  await publishRealtimeEvent(c, createRealtimeEvent("integrations", "integration", clientId, "secret_rotated"));
   return c.json({ clientId, clientSecret: client.client_secret });
 });
 
@@ -184,6 +189,7 @@ integrationRoutes.post("/:clientId/disable", requirePermission("integration:mana
   if (existing[0] === undefined) throw notFound("Integration not found.");
   await db!.update(oauthClients).set({ disabled: true, updatedAt: new Date() }).where(eq(oauthClients.clientId, clientId));
   await writeAudit(db!, { ...auditInput(c), action: "integration.status_changed", entityId: clientId, before: existing[0], after: { disabled: true } });
+  await publishRealtimeEvent(c, createRealtimeEvent("integrations", "integration", clientId, "disabled"));
   return c.json({ clientId, enabled: false });
 });
 
@@ -194,5 +200,6 @@ integrationRoutes.post("/:clientId/enable", requirePermission("integration:manag
   if (existing[0] === undefined) throw notFound("Integration not found.");
   await db!.update(oauthClients).set({ disabled: false, updatedAt: new Date() }).where(eq(oauthClients.clientId, clientId));
   await writeAudit(db!, { ...auditInput(c), action: "integration.status_changed", entityId: clientId, before: existing[0], after: { disabled: false } });
+  await publishRealtimeEvent(c, createRealtimeEvent("integrations", "integration", clientId, "enabled"));
   return c.json({ clientId, enabled: true });
 });

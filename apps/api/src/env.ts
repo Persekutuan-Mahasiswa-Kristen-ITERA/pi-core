@@ -1,6 +1,7 @@
 import type { Database } from "@pi-core/db";
 import type { Actor } from "@pi-core/shared";
 import type { AuthInstance } from "./auth";
+import type { RealtimeHub } from "./realtime/hub";
 
 /** Cloudflare Hyperdrive binding, narrowed to what `@pi-core/db` needs. */
 export interface HyperdriveBinding {
@@ -43,6 +44,8 @@ export interface Env {
   R2_SECRET_ACCESS_KEY?: string;
   /** R2 binding, used to serve avatars back without a round trip through S3. */
   AVATARS?: R2Bucket;
+  /** Durable Object binding for the real-time notification hub (ADR-0011). */
+  REALTIME_HUB?: DurableObjectNamespace<RealtimeHub>;
 }
 
 /** Hono environment for this app. */

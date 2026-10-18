@@ -6,6 +6,7 @@
  * filters rows in application code, so there is no path that could return a member the scope excluded.
  */
 import { createMember, deactivateMember, getMember, listMembers, MemberWriteError, updateMember } from "@pi-core/db";
+import { createRealtimeEvent } from "@pi-core/shared";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -14,6 +15,7 @@ import { conflict, forbidden, notFound } from "../http/errors";
 import { parseJson, parseQuery } from "../http/validate";
 import { requirePermission } from "../middleware/authorization";
 import { sessionMiddleware } from "../middleware/session";
+import { publishRealtimeEvent } from "../realtime/publisher";
 
 export const memberRoutes = new Hono<AppEnv>();
 
@@ -112,6 +114,7 @@ memberRoutes.post("/", requirePermission("member:create"), async (c) => {
   const body = await parseJson(c, createBody);
   try {
     const member = await createMember(db, { actor, input: body, request: requestFacts(c) });
+    await publishRealtimeEvent(c, createRealtimeEvent("members", "member", member.id, "created"));
     return c.json({ member }, 201);
   } catch (error) {
     return writeFailure(error);
@@ -141,6 +144,7 @@ memberRoutes.patch(
         input: body,
         request: requestFacts(c),
       });
+      await publishRealtimeEvent(c, createRealtimeEvent("members", "member", member.id, "updated"));
       return c.json({ member });
     } catch (error) {
       return writeFailure(error);
@@ -159,6 +163,7 @@ memberRoutes.post("/:id/deactivate", requirePermission("member:deactivate"), asy
       id: c.req.param("id"),
       request: requestFacts(c),
     });
+    await publishRealtimeEvent(c, createRealtimeEvent("members", "member", result.member.id, "deactivated"));
     // The session count is returned because it is the visible half of FR-5: the caller can see that
     // access actually ended, not merely that the status changed.
     return c.json({ member: result.member, sessionsRevoked: result.sessionsRevoked });

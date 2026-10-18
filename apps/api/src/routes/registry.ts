@@ -484,6 +484,24 @@ export const ROUTE_AUTHORIZATION: readonly RouteAuthorization[] = [
     reason:
       "Browse the audit log with filters (actor, action, entity, time window) and cursor pagination (FR-44). Guarded by audit:read, and additionally by a SCOPE check in the db layer: the log is org-wide and an entry has no unit relation to narrow by — the entity may not even exist any more, since the table deliberately has no foreign keys so the record outlives the member — so a U-scoped holder is REFUSED rather than shown an approximation that would leak entries about members outside their subtree. Sensitive fields are redacted AGAIN on the way out, not only on the way in (FR-13/FR-43): re-redacting is normally a no-op, and it is here so that one forgotten call at write time cannot become a permanent leak through the read path. Cursor is `(at, id)` rather than offset, because the log grows while it is being read and an offset page would shift under the reader.",
   },
+  {
+    file: "routes/realtime.ts",
+    method: "GET",
+    path: "/ws",
+    mountedAt: "/api/v1/realtime",
+    public: true,
+    reason:
+      "WebSocket real-time subscription endpoint (ADR-0011, FR-55). Authorized at connect time via sessionMiddleware (unauthenticated connections receive 401). Carries notification-only events ({ topic, entity, id, action, at }) with zero confidential payload data; re-fetches are filtered by can() at the API boundary.",
+  },
+  {
+    file: "routes/realtime.ts",
+    method: "GET",
+    path: "/sse",
+    mountedAt: "/api/v1/realtime",
+    public: true,
+    reason:
+      "Server-Sent Events fallback subscription endpoint (ADR-0011, FR-55). Authorized at connect time via sessionMiddleware (unauthenticated connections receive 401). Carries notification-only events ({ topic, entity, id, action, at }) with zero confidential payload data; re-fetches are filtered by can() at the API boundary.",
+  },
 ];
 
 /** Every registration the coverage test expects to find, as `file METHOD path`. */

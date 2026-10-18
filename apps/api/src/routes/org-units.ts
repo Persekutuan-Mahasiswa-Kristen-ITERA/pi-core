@@ -6,6 +6,7 @@
  * on a move, subtree path rewriting, soft delete — live in `packages/db/src/org-units.ts`.
  */
 import { createOrgUnit, deactivateOrgUnit, listOrgUnits, OrgUnitError, updateOrgUnit } from "@pi-core/db";
+import { createRealtimeEvent } from "@pi-core/shared";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -14,6 +15,7 @@ import { conflict, notFound } from "../http/errors";
 import { parseJson, parseQuery } from "../http/validate";
 import { requirePermission } from "../middleware/authorization";
 import { sessionMiddleware } from "../middleware/session";
+import { publishRealtimeEvent } from "../realtime/publisher";
 
 export const orgUnitRoutes = new Hono<AppEnv>();
 
@@ -82,6 +84,7 @@ orgUnitRoutes.post("/", requirePermission("orgunit:manage"), async (c) => {
   const body = await parseJson(c, createBody);
   try {
     const unit = await createOrgUnit(db, { actor, input: body, request: requestFacts(c) });
+    await publishRealtimeEvent(c, createRealtimeEvent("settings", "org_unit", unit.id, "created"));
     return c.json({ unit }, 201);
   } catch (error) {
     return orgUnitFailure(error);
@@ -113,6 +116,7 @@ orgUnitRoutes.patch("/:id", requirePermission("orgunit:manage"), async (c) => {
   const body = await parseJson(c, updateBody);
   try {
     const unit = await updateOrgUnit(db, { actor, id: c.req.param("id"), input: body, request: requestFacts(c) });
+    await publishRealtimeEvent(c, createRealtimeEvent("settings", "org_unit", unit.id, "updated"));
     return c.json({ unit });
   } catch (error) {
     return orgUnitFailure(error);
@@ -126,6 +130,7 @@ orgUnitRoutes.post("/:id/deactivate", requirePermission("orgunit:manage"), async
 
   try {
     const unit = await deactivateOrgUnit(db, { actor, id: c.req.param("id"), request: requestFacts(c) });
+    await publishRealtimeEvent(c, createRealtimeEvent("settings", "org_unit", unit.id, "deactivated"));
     return c.json({ unit });
   } catch (error) {
     return orgUnitFailure(error);

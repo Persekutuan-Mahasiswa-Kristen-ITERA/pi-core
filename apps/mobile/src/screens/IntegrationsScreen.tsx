@@ -4,6 +4,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native
 import { authHeaders } from "../auth/session";
 import { ScreenState } from "../components/ScreenState";
 import { API_URL } from "../config";
+import { useMobileRealtime } from "../realtime/useRealtime";
 import { tokens } from "../theme/tokens";
 
 type Integration = {
@@ -41,6 +42,17 @@ export function IntegrationsScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useMobileRealtime({
+    onEvent: (event) => {
+      if (event.topic === "integrations") {
+        void load();
+      }
+    },
+    onResync: () => {
+      void load();
+    },
+  });
 
   if (state !== "ready") return <ScreenState kind={state} onRetry={() => void load()} />;
 

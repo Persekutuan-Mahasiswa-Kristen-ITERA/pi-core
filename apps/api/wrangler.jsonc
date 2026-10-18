@@ -20,6 +20,22 @@
 			"0 */6 * * *"
 		]
 	},
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "REALTIME_HUB",
+				"class_name": "RealtimeHub"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": [
+				"RealtimeHub"
+			]
+		}
+	],
 	"vars": {
 		"BETTER_AUTH_URL": "http://localhost:8787",
 		"MOBILE_REDIRECT_URIS": "picore://auth,exp://",
@@ -59,7 +75,23 @@
 				"crons": [
 					"0 */6 * * *"
 				]
-			}
+			},
+			"durable_objects": {
+				"bindings": [
+					{
+						"name": "REALTIME_HUB",
+						"class_name": "RealtimeHub"
+					}
+				]
+			},
+			"migrations": [
+				{
+					"tag": "v1",
+					"new_sqlite_classes": [
+						"RealtimeHub"
+					]
+				}
+			]
 		}
 	}
 }
