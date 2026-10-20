@@ -9,9 +9,9 @@ Single source of truth for "where are we". Keep it short and factual. Never writ
 - **BMAD stage / current step:** Stage 1 (planning) **complete**; **Stage 2 (delivery) — ALL 8 EPICS COMPLETE (Epic 1 through Epic 8 complete & verified)**.
 - **Current phase/epic:** **Epic 8 (Real-time Updates) — COMPLETE (Stories 8.1–8.4 done & verified)**; Cloudflare Durable Object `RealtimeHub` with WebSocket Hibernation + SSE fallback (`new_sqlite_classes` on Free plan), event publishing wired across all domain mutations (`members`, `assignments`, `periods`, `roles`, `settings`, `integrations`), Admin Web live sync with connection status pill, Mobile Expo live sync with resync & backoff, and scope-safe fan-out tests (zero confidential data leakage, server-side `can()` gate intact). Overall verified progress: **47/47 stories (100% COMPLETE)**.
 - **BMAD sprint/story status file path:** `_bmad-output/implementation-artifacts/sprint-status.yaml` (8 epics / 47 stories; `epic-1`…`epic-8` done)
-- **Next step:** Owner click-through of the new sign-in on staging (`Masuk dengan Google` → consent → dashboard reads real members), then wire the remaining admin screens (`/anggota`, `/penugasan`, `/periode`, `/peran`, `/audit-log`, `/pengaturan`) to the API under the same bearer client. Production deploy remains an approval gate.
+- **Next step:** The sign-in loop is closed (owner-confirmed 2026-10-21) and `/anggota` reads the API. Next: wire `/periode`, `/peran`, `/penugasan`, `/audit-log`, `/pengaturan` the same way, in that order (`/peran` and `/periode` have real GET endpoints; `/penugasan` and `/audit-log` need their list payloads checked first). Production deploy remains an approval gate.
 - **Status:** awaiting owner review <!-- not started | in progress | blocked | awaiting owner review | done -->
-- **Last updated:** 2026-10-20, by Hermes
+- **Last updated:** 2026-10-21, by Hermes
 
 ## Done (verified)
 
@@ -155,6 +155,8 @@ Workers Free.** Before Epic 4 builds the UI on this, we need a decision (see _In
 - 2026-10-15: standing instruction — **"lakukan semuanya secara gratis dahulu"**: every provider stays on a free tier, no upgrades/overages without approval (→ ADR-0014).
 
 ## Session notes (newest first)
+
+- **2026-10-21 (Hermes — sign-in confirmed, Directory wired):** The owner confirmed the sign-in now completes on staging, closing the loop ADR-0018 opened; `/api/v1/*` is reached with a bearer token from the browser, no cookie. Then `/anggota` was connected to the API: it loaded six **invented** members ("Jonathan Sitorus", NIM `121140022`, …) and its "Aktifkan/Nonaktifkan" toggle only mutated local state, so the page looked like a working directory while persisting nothing. It now reads `GET /api/v1/members?limit=50`, creates through the same `.strict()` endpoint the dashboard uses, and deactivates through `POST /members/:id/deactivate`. Columns became **Nama & Email · NIM · Status · Aksi** and the unit filter was removed (recorded as DESIGN.md **D8**): role/unit/period live in `assignments` and are absent from the list payload, so the old columns could only be filled by inventing values. The status control is **Nonaktifkan-only** because deactivation is a one-way soft delete, and a NIM hidden for lack of `member:read_sensitive` renders as "Tidak berhak" instead of a blank. `PreviewNotice` no longer covers `/anggota`. Verified: web typecheck clean, `pnpm --filter @pi-core/web lint` **0 errors** (16 pre-existing warnings elsewhere), live `/anggota` **200** with **0** occurrences of the sample names and no preview banner, while `/penugasan` still carries it. Deployed web **`e98db5f0-639f-4917-af0c-47ab21d77a78`**. **Not verified:** the rendered rows against a real signed-in session (the page compiles and the request shape matches the handler, but only the owner's browser can confirm the table fills).
 
 - **2026-10-18 (Antigravity - Gemini 3.8 Flash):** **Aesthetic & Functional Overhaul of Admin Web & Mobile Complete.**
   - Installed `lucide-react` in `@pi-core/web` and `@expo/vector-icons` in `@pi-core/mobile`.
