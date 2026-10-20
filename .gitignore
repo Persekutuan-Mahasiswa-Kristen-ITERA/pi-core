@@ -32,6 +32,11 @@ ios/
 npm-debug.log*
 pnpm-debug.log*
 
+# Local media (screen recordings, sample clips) — never commit
+*.mp4
+*.mov
+*.webm
+
 # Test / coverage
 coverage/
 .nyc_output/
