@@ -11,7 +11,7 @@ Single source of truth for "where are we". Keep it short and factual. Never writ
 - **BMAD sprint/story status file path:** `_bmad-output/implementation-artifacts/sprint-status.yaml` (8 epics / 47 stories; `epic-1`…`epic-8` done)
 - **Next step:** Final delivery review with owner. All features delivered; awaiting approval gate for production deployment.
 - **Status:** awaiting owner review <!-- not started | in progress | blocked | awaiting owner review | done -->
-- **Last updated:** 2026-10-18, by Antigravity (Gemini 3.8 Flash)
+- **Last updated:** 2026-10-20, by Hermes
 
 ## Done (verified)
 
@@ -176,6 +176,8 @@ Workers Free.** Before Epic 4 builds the UI on this, we need a decision (see _In
     - `App.tsx`: Refined header, drawer with Ionicons for each module, active bottom navigation indicator dots, and profile editor modal.
     - `DirectoryScreen.tsx`: Modern search bar, filter chips, member card list with avatar circles, working "+ Tambah Anggota" modal, delete action, and rendered Roles & Periods lists.
   - Verification: `pnpm --filter @pi-core/web build` passed (10/10 static pages cleanly generated), `pnpm --filter @pi-core/mobile typecheck` passed (0 errors), all 7 web endpoints return HTTP 200.
+
+- **2026-10-20 (Hermes):** **Staging API re-synced with `main`, and the OAuth verification path is now locked by tests.** Verified reality before touching anything: `main` was clean at `e32404c`, but the deployed API Worker was version `a535f2a0` (2026-10-18 07:52Z) — **five minutes older than commit `852538a`**, so the mobile hand-off fix (`/sign-in` redirect when `isMobile`) and `MOBILE_REDIRECT_URIS=picore://auth,exp://` had never reached staging. Redeployed `pi-core-api-staging` → `9de2872b` (HEAD `e32404c`), then again after the refactor below → **`40eccd22-dc1d-45f6-b442-d5e62fa49746`**. Extracted `verifyAccessTokenWithLocalJwks()` out of the `/api/v1/access` handler so the in-process JWKS wiring (`loadJwks`, added in `0dc37f9` to escape the `*.workers.dev` loopback 404) is directly testable, and added **5 regression tests** that sign real Ed25519 tokens with `node:crypto` against a stubbed `loadJwks`: a valid token is accepted, while a foreign signing key, a wrong issuer, an expired token and a missing `pmk:access` scope are all rejected. They use no network at all, so reverting the verifier to a JWKS **URL** fails them instead of silently passing. Verified: workspace typecheck 6/6, `pnpm -r test` **166 passed** (shared 96, API 70), lint **0 errors** (8 pre-existing `packages/db` warnings), and live staging `health` / `jwks` / `openid-configuration` / `oauth-authorization-server` / `sign-in` all **200**, `/api/v1/access` **401** without a token and **401** with a malformed one, `/api/v1/integrations` **401** without a session. **Not verified:** the Google consent → authorization code → token exchange leg, which needs a signed-in browser session and the client secret, so it was **not** re-run this session.
 
 - **2026-10-18 (Antigravity - Gemini 3.8 Flash):** **Story 6.4 complete & Epic 6 fully verified on staging.** Root cause of previous OAuth E2E failures identified and resolved:
   (1) Better Auth requires the RFC 8707 `resource` parameter to emit a signed JWT access token; without it, an opaque token is minted. Added `resource` to authorize URL, token exchange, and `docs/INTEGRATION-CONTRACT.md`.
