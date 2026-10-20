@@ -69,7 +69,10 @@ export function callbackUrl(): string {
  * Builds the authorize URL and parks the PKCE verifier + state in `sessionStorage`.
  *
  * `resource` is not decorative: without it the provider mints an **opaque** access token, and
- * `/api/v1/*` would have nothing to verify (see `docs/INTEGRATION-CONTRACT.md`).
+ * `/api/v1/*` would have nothing to verify (see `docs/INTEGRATION-CONTRACT.md`). Its value becomes the
+ * token's `aud` **verbatim** (`@better-auth/oauth-provider` → `aud: resource`), and `/api/v1/access`
+ * verifies `aud === <API origin>` — so this must be the origin, not the issuer. Sending the issuer here
+ * produced a token the API correctly rejected, and the sign-in bounced back with no session.
  */
 export async function beginSignIn(): Promise<string> {
   const verifier = randomToken(48);
@@ -85,7 +88,7 @@ export async function beginSignIn(): Promise<string> {
     state,
     code_challenge: await pkceChallenge(verifier),
     code_challenge_method: "S256",
-    resource: ISSUER,
+    resource: API_BASE_URL,
   });
 
   return `${ISSUER}/oauth2/authorize?${params.toString()}`;
@@ -109,7 +112,7 @@ async function tokenRequest(body: Record<string, string>): Promise<TokenSet> {
       accept: "application/json",
       "content-type": "application/x-www-form-urlencoded",
     },
-    body: new URLSearchParams({ ...body, resource: ISSUER }).toString(),
+    body: new URLSearchParams({ ...body, resource: API_BASE_URL }).toString(),
   });
 
   if (!response.ok) {

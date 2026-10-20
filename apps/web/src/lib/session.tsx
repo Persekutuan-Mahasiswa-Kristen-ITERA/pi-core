@@ -44,7 +44,7 @@ interface SessionContextValue {
   state: SessionState;
   signIn: () => Promise<void>;
   signOut: () => void;
-  reload: () => Promise<void>;
+  reload: () => Promise<AccessSnapshot | null>;
   completeSignIn: (code: string, state: string | null) => Promise<void>;
 }
 
@@ -66,13 +66,14 @@ export function SessionProvider({
 }): JSX.Element {
   const [state, setState] = useState<SessionState>({ status: "loading" });
 
-  const reload = useCallback(async (): Promise<void> => {
+  const reload = useCallback(async (): Promise<AccessSnapshot | null> => {
     const access = await fetchAccess();
     setState(
       access === null
         ? { status: "anonymous" }
         : { status: "authenticated", access },
     );
+    return access;
   }, []);
 
   // A reload recovers the session from the refresh token in `sessionStorage`; the access token
@@ -118,7 +119,19 @@ export function SessionProvider({
     async (code: string, state_: string | null): Promise<void> => {
       const tokens = await completeSignIn(code, state_);
       setSessionTokens(tokens);
-      await reload();
+      const access = await reload();
+      /**
+       * A token that the API refuses (wrong `aud`, missing `pmk:access`, deactivated member) used to
+       * leave the caller anonymous with no message, so the only visible symptom was "it goes back to
+       * the dashboard" — and the user retried forever. Fail loudly instead.
+       */
+      if (access === null) {
+        setSessionTokens(null);
+        clearTokens();
+        throw new Error(
+          "Token diterima, tetapi API menolak sesi ini (audience, scope, atau keanggotaan tidak aktif).",
+        );
+      }
     },
     [reload],
   );
