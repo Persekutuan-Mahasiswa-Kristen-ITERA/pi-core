@@ -3,15 +3,14 @@
 /**
  * Marks the screens that still render sample rows.
  *
- * Only the dashboard and the sign-in callback talk to the API so far; the other admin pages are
- * layout previews. Saying so in the page itself is the difference between "unfinished" and
- * "showing invented members as if they were the organization's".
+ * The dashboard, `/anggota` and the sign-in callback talk to the API; the remaining admin pages are
+ * layout previews. Saying so in the page itself is the difference between "unfinished" and "showing
+ * invented members as if they were the organization's".
  */
 import { usePathname } from "next/navigation";
 import type { JSX } from "react";
 
 const PREVIEW_ROUTES = [
-  "/anggota",
   "/penugasan",
   "/periode",
   "/peran",

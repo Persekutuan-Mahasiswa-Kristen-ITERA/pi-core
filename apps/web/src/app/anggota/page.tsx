@@ -1,72 +1,157 @@
 "use client";
 
-import { useState, type JSX } from "react";
-import { Search, Filter, CheckCircle, XCircle, Users, Download } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
+import { Search, Filter, Users, Download, RefreshCw } from "lucide-react";
 import { Sidebar, MobileNav } from "../../components/Sidebar";
 import { TopHeader } from "../../components/TopHeader";
+import { apiFetch } from "../../lib/api-client";
+import { useSession } from "../../lib/session";
 import { MemberSheet, type MemberForm } from "../member-sheet";
 
-type MemberItem = {
+/** Mirrors `listMembers` in `packages/db/src/members.ts` — the server decides which fields exist. */
+interface MemberRow {
   id: string;
-  fullName: string;
   email: string;
-  nim: string;
-  faculty: string;
-  studyProgram: string;
-  cohortYear: string;
-  phone: string;
-  unit: string;
-  role: string;
-  status: "Aktif" | "Nonaktif";
-};
+  fullName: string;
+  status: "active" | "inactive";
+  nim?: string | null;
+  phone?: string | null;
+}
 
-const INITIAL_MEMBERS: MemberItem[] = [
-  { id: "mem_1", fullName: "Jonathan Sitorus", email: "jonathan.sitorus@itera.ac.id", nim: "121140022", faculty: "FTI", studyProgram: "Teknik Informatika", cohortYear: "2021", phone: "+6281234567890", unit: "BPH", role: "Ketua Umum", status: "Aktif" },
-  { id: "mem_2", fullName: "Maria Simanjuntak", email: "maria.simanjuntak@student.itera.ac.id", nim: "122140088", faculty: "FTI", studyProgram: "Teknik Informatika", cohortYear: "2022", phone: "+6281234567891", unit: "Departemen Pelayanan", role: "Sekretaris", status: "Aktif" },
-  { id: "mem_3", fullName: "Daniel Hutapea", email: "daniel.hutapea@student.itera.ac.id", nim: "122130045", faculty: "FTI", studyProgram: "Teknik Elektro", cohortYear: "2022", phone: "+6281234567892", unit: "Divisi Ibadah", role: "Kepala Divisi", status: "Aktif" },
-  { id: "mem_4", fullName: "Grace Lumbantoruan", email: "grace.lumban@student.itera.ac.id", nim: "123140012", faculty: "FS", studyProgram: "Farmasi", cohortYear: "2023", phone: "+6281234567893", unit: "Divisi Media", role: "Staff", status: "Aktif" },
-  { id: "mem_5", fullName: "Samuel Nababan", email: "samuel.nababan@student.itera.ac.id", nim: "121110034", faculty: "FTSP", studyProgram: "Teknik Sipil", cohortYear: "2021", phone: "+6281234567894", unit: "Biro Bendahara", role: "Bendahara Umum", status: "Aktif" },
-  { id: "mem_6", fullName: "Debora Pasaribu", email: "debora.pasaribu@student.itera.ac.id", nim: "123120056", faculty: "FTI", studyProgram: "Teknik Geomatika", cohortYear: "2023", phone: "+6281234567895", unit: "Divisi Doa", role: "Staff", status: "Aktif" },
-];
+interface MembersResponse {
+  items: MemberRow[];
+  nextCursor: string | null;
+  /** False when the actor lacks `member:read_sensitive`; the UI must not imply the data is missing. */
+  sensitiveIncluded: boolean;
+}
+
+const PAGE_SIZE = 50;
 
 export default function AnggotaPage(): JSX.Element {
-  const [members, setMembers] = useState<MemberItem[]>(INITIAL_MEMBERS);
+  const session = useSession();
+  const authenticated = session.state.status === "authenticated";
+
+  const [members, setMembers] = useState<MemberRow[]>([]);
+  const [sensitiveIncluded, setSensitiveIncluded] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [unitFilter, setUnitFilter] = useState("Semua");
   const [statusFilter, setStatusFilter] = useState("Semua");
 
-  function handleAdd(form: MemberForm) {
-    const newM: MemberItem = {
-      id: `mem_${Date.now()}`,
-      fullName: form.fullName,
-      email: form.email,
-      nim: form.nim || "124140001",
-      faculty: form.faculty || "FTI",
-      studyProgram: form.studyProgram || "Teknik Informatika",
-      cohortYear: form.cohortYear || "2024",
-      phone: form.phone || "-",
-      unit: "Anggota Biasa",
-      role: "Anggota",
-      status: "Aktif",
-    };
-    setMembers((prev) => [newM, ...prev]);
+  const load = useCallback(async (): Promise<void> => {
+    if (!authenticated) {
+      setMembers([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiFetch(`/api/v1/members?limit=${String(PAGE_SIZE)}`);
+      if (response.status === 401 || response.status === 403) {
+        setError("Sesi ini tidak lagi memiliki akses ke direktori anggota.");
+        setMembers([]);
+        return;
+      }
+      if (!response.ok) {
+        setError(`Gagal memuat anggota (HTTP ${String(response.status)}).`);
+        return;
+      }
+      const body = (await response.json()) as MembersResponse;
+      setMembers(body.items);
+      setSensitiveIncluded(body.sensitiveIncluded);
+    } catch {
+      setError("Tidak dapat menghubungi API. Periksa koneksi lalu coba lagi.");
+    } finally {
+      setLoading(false);
+    }
+  }, [authenticated]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  /** The dashboard creates through the same endpoint, so they share its `.strict()` body. */
+  async function handleAdd(form: MemberForm): Promise<void> {
+    setNotice(null);
+    setError(null);
+    try {
+      const response = await apiFetch("/api/v1/members", {
+        method: "POST",
+        body: JSON.stringify({
+          email: form.email,
+          fullName: form.fullName,
+          nim: form.nim === "" ? null : form.nim,
+          phone: form.phone === "" ? null : form.phone,
+          faculty: form.faculty === "" ? null : form.faculty,
+          studyProgram: form.studyProgram === "" ? null : form.studyProgram,
+          cohortYear: form.cohortYear === "" ? null : Number(form.cohortYear),
+        }),
+      });
+
+      if (response.status === 403) {
+        setError("Peran Anda tidak memiliki izin member:create.");
+        return;
+      }
+      if (response.status === 409) {
+        setError("Email tersebut sudah terdaftar.");
+        return;
+      }
+      if (!response.ok) {
+        setError(`Gagal menambah anggota (HTTP ${String(response.status)}).`);
+        return;
+      }
+      setNotice(`${form.fullName} ditambahkan.`);
+      await load();
+    } catch {
+      setError("Tidak dapat menghubungi API. Anggota belum tersimpan.");
+    }
   }
 
-  function handleToggleStatus(id: string) {
-    setMembers((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, status: m.status === "Aktif" ? "Nonaktif" : "Aktif" } : m)),
-    );
+  /**
+   * Deactivation is a one-way soft delete (`POST /members/:id/deactivate`) and there is no reactivate
+   * endpoint, so the button only ever offers "Nonaktifkan" — an "Aktifkan" that cannot work would be a
+   * lie the prototype told.
+   */
+  async function handleDeactivate(member: MemberRow): Promise<void> {
+    if (!window.confirm(`Nonaktifkan ${member.fullName}? Akses mereka dicabut pada permintaan berikutnya.`)) {
+      return;
+    }
+    setNotice(null);
+    setError(null);
+    try {
+      const response = await apiFetch(`/api/v1/members/${member.id}/deactivate`, { method: "POST" });
+      if (response.status === 403) {
+        setError("Peran Anda tidak memiliki izin member:deactivate.");
+        return;
+      }
+      if (!response.ok) {
+        setError(`Gagal menonaktifkan anggota (HTTP ${String(response.status)}).`);
+        return;
+      }
+      setNotice(`${member.fullName} dinonaktifkan.`);
+      await load();
+    } catch {
+      setError("Tidak dapat menghubungi API. Status belum berubah.");
+    }
   }
 
-  const filtered = members.filter((m) => {
-    const matchSearch =
-      m.fullName.toLowerCase().includes(search.toLowerCase()) ||
-      m.nim.includes(search) ||
-      m.email.toLowerCase().includes(search.toLowerCase());
-    const matchUnit = unitFilter === "Semua" || m.unit.includes(unitFilter);
-    const matchStatus = statusFilter === "Semua" || m.status === statusFilter;
-    return matchSearch && matchUnit && matchStatus;
-  });
+  const filtered = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return members.filter((member) => {
+      const matchesSearch =
+        needle === "" ||
+        member.fullName.toLowerCase().includes(needle) ||
+        member.email.toLowerCase().includes(needle) ||
+        (member.nim ?? "").toLowerCase().includes(needle);
+      const matchesStatus =
+        statusFilter === "Semua" ||
+        (statusFilter === "Aktif" ? member.status === "active" : member.status === "inactive");
+      return matchesSearch && matchesStatus;
+    });
+  }, [members, search, statusFilter]);
 
   return (
     <div className="shell">
@@ -79,23 +164,47 @@ export default function AnggotaPage(): JSX.Element {
               <p className="eyebrow">Direktori Terpusat</p>
               <h1>Direktori Anggota PMK ITERA</h1>
               <p className="subtitle">
-                Kelola data profil, verifikasi email resmi ITERA, status keaktifan, dan penugasan unit organisasi.
+                Data langsung dari PI-CORE. Isi tabel dibatasi peran Anda: anggota di luar cakupan unit tidak
+                dikirim server sama sekali.
               </p>
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button
                 className="button button-secondary"
                 type="button"
-                onClick={() => alert("Mengekspor direktori ke CSV...")}
+                disabled
+                title="Ekspor belum tersedia — API belum punya endpoint ekspor."
               >
                 <Download size={15} />
                 <span>Ekspor CSV</span>
               </button>
-              <MemberSheet onSave={handleAdd} />
+              <MemberSheet onSave={(form) => void handleAdd(form)} />
             </div>
           </div>
 
-          {/* Filter Bar */}
+          {notice !== null ? (
+            <div className="card" style={{ padding: "10px 14px", marginBottom: 12, fontSize: 13 }}>
+              {notice}
+            </div>
+          ) : null}
+
+          {error !== null ? (
+            <div
+              className="card"
+              style={{ padding: "10px 14px", marginBottom: 12, fontSize: 13, borderColor: "var(--color-negative)" }}
+            >
+              <strong style={{ color: "var(--color-negative)" }}>Terjadi kesalahan.</strong> {error}
+              <button
+                className="button button-secondary"
+                type="button"
+                style={{ marginLeft: 12, minHeight: 28, padding: "2px 10px", fontSize: 12 }}
+                onClick={() => void load()}
+              >
+                <RefreshCw size={13} /> Coba lagi
+              </button>
+            </div>
+          ) : null}
+
           <div className="filter-bar">
             <div className="search-input-group">
               <Search size={16} className="search-icon" />
@@ -110,17 +219,11 @@ export default function AnggotaPage(): JSX.Element {
 
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <Filter size={15} style={{ color: "var(--color-muted)" }} />
-              <select className="select-input" value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)}>
-                <option value="Semua">Semua Unit</option>
-                <option value="BPH">BPH</option>
-                <option value="Pelayanan">Departemen Pelayanan</option>
-                <option value="Media">Divisi Media</option>
-                <option value="Ibadah">Divisi Ibadah</option>
-                <option value="Doa">Divisi Doa</option>
-                <option value="Bendahara">Biro Bendahara</option>
-              </select>
-
-              <select className="select-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <select
+                className="select-input"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
                 <option value="Semua">Semua Status</option>
                 <option value="Aktif">Aktif</option>
                 <option value="Nonaktif">Nonaktif</option>
@@ -128,71 +231,88 @@ export default function AnggotaPage(): JSX.Element {
             </div>
 
             <span style={{ fontSize: 12.5, color: "var(--color-muted)", marginLeft: "auto", fontWeight: 500 }}>
-              Menampilkan <strong>{filtered.length}</strong> dari {members.length} anggota
+              {loading
+                ? "Memuat…"
+                : `Menampilkan ${String(filtered.length)} dari ${String(members.length)} anggota`}
             </span>
           </div>
 
-          {/* Members Table */}
           <div className="card card-hover">
             <div className="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Nama & Email</th>
-                    <th>NIM & Angkatan</th>
-                    <th>Fakultas / Prodi</th>
-                    <th>Penugasan Unit</th>
+                    <th>Nama &amp; Email</th>
+                    <th>NIM</th>
                     <th>Status</th>
                     <th style={{ textAlign: "right" }}>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.length === 0 ? (
+                  {!authenticated && !loading ? (
                     <tr>
-                      <td colSpan={6} style={{ textAlign: "center", padding: "48px 16px" }}>
+                      <td colSpan={4} style={{ textAlign: "center", padding: "48px 16px" }}>
                         <Users size={36} style={{ margin: "0 auto 12px", color: "var(--color-muted)", opacity: 0.5 }} />
                         <strong style={{ display: "block", color: "var(--color-heading)", fontSize: 15 }}>
-                          Tidak ada anggota ditemukan
+                          Masuk untuk melihat direktori
+                        </strong>
+                        <p style={{ margin: "4px 0 12px", color: "var(--color-muted)", fontSize: 13 }}>
+                          Direktori berisi data pribadi, jadi tidak ditampilkan sebelum Anda masuk.
+                        </p>
+                        <button className="button button-primary" type="button" onClick={() => void session.signIn()}>
+                          Masuk dengan Google
+                        </button>
+                      </td>
+                    </tr>
+                  ) : filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} style={{ textAlign: "center", padding: "48px 16px" }}>
+                        <Users size={36} style={{ margin: "0 auto 12px", color: "var(--color-muted)", opacity: 0.5 }} />
+                        <strong style={{ display: "block", color: "var(--color-heading)", fontSize: 15 }}>
+                          {loading
+                            ? "Memuat anggota…"
+                            : members.length === 0
+                              ? "Belum ada anggota"
+                              : "Tidak ada anggota ditemukan"}
                         </strong>
                         <p style={{ margin: "4px 0 0", color: "var(--color-muted)", fontSize: 13 }}>
-                          Coba ganti kata kunci pencarian atau sesuaikan filter unit/status.
+                          {members.length === 0
+                            ? "Tambahkan anggota pertama lewat tombol di kanan atas."
+                            : "Coba ganti kata kunci pencarian atau filter status."}
                         </p>
                       </td>
                     </tr>
                   ) : (
-                    filtered.map((m) => (
-                      <tr key={m.id}>
+                    filtered.map((member) => (
+                      <tr key={member.id}>
                         <td>
                           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                             <div className="avatar avatar-sm">
-                              {m.fullName.split(" ").map(n => n[0]).slice(0, 2).join("")}
+                              {member.fullName
+                                .split(" ")
+                                .map((part) => part[0])
+                                .slice(0, 2)
+                                .join("")}
                             </div>
                             <div>
                               <strong style={{ color: "var(--color-heading)", display: "block", fontSize: 14 }}>
-                                {m.fullName}
+                                {member.fullName}
                               </strong>
-                              <span style={{ fontSize: 12, color: "var(--color-muted)" }}>{m.email}</span>
+                              <span style={{ fontSize: 12, color: "var(--color-muted)" }}>{member.email}</span>
                             </div>
                           </div>
                         </td>
                         <td>
-                          <strong style={{ color: "var(--color-heading-secondary)" }}>{m.nim}</strong>
-                          <span style={{ fontSize: 12, color: "var(--color-muted)", display: "block" }}>
-                            Angkatan {m.cohortYear}
-                          </span>
+                          {member.nim != null && member.nim !== "" ? (
+                            <strong style={{ color: "var(--color-heading-secondary)" }}>{member.nim}</strong>
+                          ) : (
+                            <span style={{ fontSize: 12.5, color: "var(--color-muted)" }}>
+                              {sensitiveIncluded ? "—" : "Tidak berhak"}
+                            </span>
+                          )}
                         </td>
                         <td>
-                          <span style={{ color: "var(--color-heading-secondary)", fontWeight: 500 }}>{m.studyProgram}</span>
-                          <span style={{ fontSize: 12, color: "var(--color-muted)", display: "block" }}>{m.faculty}</span>
-                        </td>
-                        <td>
-                          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                            <span className="badge badge-gold">{m.unit}</span>
-                            <span style={{ fontSize: 11, color: "var(--color-muted)", paddingLeft: 4 }}>{m.role}</span>
-                          </div>
-                        </td>
-                        <td>
-                          {m.status === "Aktif" ? (
+                          {member.status === "active" ? (
                             <span className="badge badge-green">
                               <span className="badge-dot" />
                               Aktif
@@ -209,29 +329,30 @@ export default function AnggotaPage(): JSX.Element {
                             <MemberSheet
                               mode="edit"
                               initialValues={{
-                                fullName: m.fullName,
-                                email: m.email,
-                                nim: m.nim,
-                                faculty: m.faculty,
-                                studyProgram: m.studyProgram,
-                                cohortYear: m.cohortYear,
-                                phone: m.phone,
+                                fullName: member.fullName,
+                                email: member.email,
+                                nim: member.nim ?? "",
+                                faculty: "",
+                                studyProgram: "",
+                                cohortYear: "",
+                                phone: member.phone ?? "",
                               }}
-                              onSave={(updated) => {
-                                setMembers((prev) => prev.map((item) => (item.id === m.id ? { ...item, ...updated } : item)));
+                              onSave={() => {
+                                setNotice("Penyuntingan belum tersambung ke API — tidak ada perubahan yang disimpan.");
                               }}
                             />
                             <button
                               className="button button-secondary"
                               type="button"
                               style={{ minHeight: 32, padding: "4px 10px", fontSize: 12 }}
-                              onClick={() => handleToggleStatus(m.id)}
-                              title={m.status === "Aktif" ? "Nonaktifkan anggota" : "Aktifkan anggota"}
+                              onClick={() => void handleDeactivate(member)}
+                              disabled={member.status === "inactive"}
+                              title={member.status === "active" ? "Nonaktifkan anggota" : "Anggota ini sudah nonaktif"}
                             >
-                              {m.status === "Aktif" ? (
+                              {member.status === "active" ? (
                                 <span style={{ color: "var(--color-negative)" }}>Nonaktifkan</span>
                               ) : (
-                                <span style={{ color: "var(--color-positive)" }}>Aktifkan</span>
+                                <span style={{ color: "var(--color-positive)" }}>Nonaktif</span>
                               )}
                             </button>
                           </div>
