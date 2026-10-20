@@ -1,4 +1,4 @@
-import { loadAccessSnapshot, loadJwks, withDb } from "@pi-core/db";
+import { loadAccessSnapshot, loadJwks, withDb, type Database } from "@pi-core/db";
 import { oauthProviderResourceClient } from "@better-auth/oauth-provider/resource-client";
 import { Hono } from "hono";
 import type { Context } from "hono";
@@ -9,6 +9,27 @@ import { unauthorized, forbidden } from "../http/errors";
 export const accessRoutes = new Hono<AppEnv>();
 
 const resourceClient = oauthProviderResourceClient();
+
+/**
+ * Verifies an OAuth access token against the issuer's own signing keys.
+ *
+ * The keys are read **in-process** from the `jwks` table and handed to the provider's verifier as
+ * a function rather than as a URL. That is deliberate: on Cloudflare Workers a subrequest from the
+ * Worker back to its own `*.workers.dev` hostname answers 404, which made every real token fail
+ * with `Jwks failed: Not Found` while `curl` against the very same path returned 200. A function
+ * source also costs no subrequest, which matters under the Workers Free CPU budget (ADR-0008).
+ */
+export async function verifyAccessTokenWithLocalJwks(
+  db: Database,
+  token: string,
+  options: { issuer: string; audience: string },
+): Promise<Record<string, unknown>> {
+  return (await resourceClient.getActions().verifyAccessToken(token, {
+    jwksUrl: (async () => loadJwks(db)) as unknown as string,
+    verifyOptions: { issuer: options.issuer, audience: options.audience },
+    scopes: ["pmk:access"],
+  })) as Record<string, unknown>;
+}
 
 export function extractBearerToken(header: string | undefined): string {
   if (header === undefined || !/^Bearer\s+\S+$/i.test(header))
@@ -38,11 +59,10 @@ accessRoutes.get("/access", accessRateLimit, async (c) => {
   return withDb(c.env.HYPERDRIVE, async (db) => {
     let claims: Record<string, unknown>;
     try {
-      claims = (await resourceClient.getActions().verifyAccessToken(token, {
-        jwksUrl: (async () => loadJwks(db)) as unknown as string,
-        verifyOptions: { issuer, audience },
-        scopes: ["pmk:access"],
-      })) as Record<string, unknown>;
+      claims = await verifyAccessTokenWithLocalJwks(db, token, {
+        issuer,
+        audience,
+      });
     } catch (error) {
       const details =
         error instanceof Error ? error.message : "unknown verifier error";
