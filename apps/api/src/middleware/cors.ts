@@ -27,6 +27,17 @@ export function allowedOrigins(env: Env): string[] {
     .filter((entry) => entry !== "");
 }
 
+const ALLOWED_HEADERS = "content-type, authorization, x-request-id";
+
+function applyCorsHeaders(headers: Headers, origin: string): void {
+  headers.set("access-control-allow-origin", origin);
+  headers.set("access-control-allow-credentials", "true");
+  headers.set("vary", "Origin");
+  headers.set("access-control-allow-methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+  headers.set("access-control-allow-headers", ALLOWED_HEADERS);
+  headers.set("access-control-max-age", "600");
+}
+
 export const corsMiddleware = createMiddleware<AppEnv>(async (c, next) => {
   const origin = c.req.header("origin");
   const allowed = allowedOrigins(c.env);
@@ -37,7 +48,7 @@ export const corsMiddleware = createMiddleware<AppEnv>(async (c, next) => {
     c.header("access-control-allow-credentials", "true");
     c.header("vary", "Origin");
     c.header("access-control-allow-methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-    c.header("access-control-allow-headers", "content-type, authorization, x-request-id");
+    c.header("access-control-allow-headers", ALLOWED_HEADERS);
     c.header("access-control-max-age", "600");
   }
 
@@ -51,3 +62,34 @@ export const corsMiddleware = createMiddleware<AppEnv>(async (c, next) => {
 
   await next();
 });
+
+/**
+ * Re-applies the CORS headers to the **final** response.
+ *
+ * `c.header()` writes to the response Hono builds at the end of the chain, but a route that returns a
+ * `Response` it created itself replaces that object outright — and the Better Auth handler mounted at
+ * `/api/auth` does exactly that. The symptom is nasty because it is invisible to `curl` without an
+ * `Origin`: the token endpoint answered `401 invalid_grant` correctly, but with no
+ * `Access-Control-Allow-Origin`, so the browser discarded it and the page reported
+ * `TypeError: Failed to fetch` while the server had done nothing wrong.
+ *
+ * Registered after the CORS middleware in `app.ts`; it only fills in what is missing, never overrides.
+ */
+export const corsResponseMiddleware = createMiddleware<AppEnv>(async (c, next) => {
+  await next();
+
+  const origin = c.req.header("origin");
+  if (origin === undefined || c.res === undefined) return;
+  if (!allowedOrigins(c.env).includes(origin)) return;
+  if (c.res.headers.has("access-control-allow-origin")) return;
+
+  const headers = new Headers(c.res.headers);
+  applyCorsHeaders(headers, origin);
+  // A response produced by `fetch()` has immutable headers, so it is rebuilt rather than mutated.
+  c.res = new Response(c.res.body, {
+    status: c.res.status,
+    statusText: c.res.statusText,
+    headers,
+  });
+});
+

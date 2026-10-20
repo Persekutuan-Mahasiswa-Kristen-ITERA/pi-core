@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { AppEnv } from "./env";
 import { errorBody, toErrorResponse } from "./http/errors";
-import { corsMiddleware } from "./middleware/cors";
+import { corsMiddleware, corsResponseMiddleware } from "./middleware/cors";
 import { authRateLimit, writeRateLimit } from "./middleware/rate-limit";
 import { requestIdMiddleware } from "./middleware/request-id";
 import { requestLoggerMiddleware } from "./middleware/request-logger";
@@ -49,6 +49,10 @@ app.use("*", requestIdMiddleware);
 app.use("*", requestLoggerMiddleware);
 app.use("*", securityHeadersMiddleware);
 app.use("*", corsMiddleware);
+// Runs after the route chain and repairs headers that a self-built `Response` (the Better Auth
+// handler) would otherwise drop — without it the browser reports `Failed to fetch` instead of the
+// real status. See the comment on `corsResponseMiddleware`.
+app.use("*", corsResponseMiddleware);
 app.use(
   "*",
   bodyLimit({
