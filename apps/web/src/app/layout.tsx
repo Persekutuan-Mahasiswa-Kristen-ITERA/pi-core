@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import type { JSX, ReactNode } from "react";
+import { PreviewNotice } from "../components/PreviewNotice";
+import { SessionProvider } from "../lib/session";
 import "./globals.css";
 
 const plusJakarta = Plus_Jakarta_Sans({
@@ -27,19 +29,15 @@ export default function RootLayout({ children }: { children: ReactNode }): JSX.E
     <html lang="id" className={`${plusJakarta.variable} ${inter.variable}`}>
       <body className="antialiased">
         {/*
-          Every admin screen except Integrations still renders sample rows and never calls the API.
-          That is not cosmetic: the web and API Workers are separate `*.workers.dev` sites, and the
-          Better Auth session cookie is `SameSite=Lax`, so a cross-site XHR from this page cannot
-          carry it — `/api/v1/*` answers 401. Until the origin topology is settled (custom domain vs.
-          same-origin proxy; ADR pending) nobody should read these rows as real PMK data.
+          The session lives here, not in a cookie: the web and API Workers are separate
+          `*.workers.dev` sites, so the Better Auth `SameSite=Lax` cookie is never sent on this
+          page's cross-site calls. Every screen therefore reads identity and permissions from
+          `/api/v1/access` with a bearer token (ADR-0018).
         */}
-        <div
-          role="status"
-          className="border-b border-amber-300 bg-amber-50 px-4 py-2 text-center text-xs font-semibold text-amber-900"
-        >
-          Pratinjau UI — baris data pada halaman ini masih contoh dan belum tersambung ke API PI-CORE.
-        </div>
-        {children}
+        <SessionProvider>
+          <PreviewNotice />
+          {children}
+        </SessionProvider>
       </body>
     </html>
   );

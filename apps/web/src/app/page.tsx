@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type JSX } from "react";
+import { useCallback, useEffect, useState, type JSX } from "react";
 import {
   Users,
   CalendarRange,
@@ -21,21 +21,75 @@ import { TopHeader } from "../components/TopHeader";
 import { MemberSheet, type MemberForm } from "./member-sheet";
 import { IntegrationsPanel } from "./integrations";
 import { useRealtime } from "./realtime";
+import { apiFetch } from "../lib/api-client";
+import { API_BASE_URL } from "../lib/oidc";
+import { useSession } from "../lib/session";
+
+/** The subset of `GET /api/v1/members` this screen renders. */
+interface MemberRow {
+  id: string;
+  name: string;
+  email: string;
+  nim: string | null;
+  status: string;
+}
 
 export default function DashboardPage(): JSX.Element {
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "https://pi-core-api-staging.pmkitera.workers.dev";
-  const [members, setMembers] = useState([
-    { id: "1", name: "Jonathan Sitorus", role: "Ketua Umum", unit: "BPH", status: "Aktif", nim: "121140001", batch: "2021" },
-    { id: "2", name: "Maria Simanjuntak", role: "Sekretaris Umum", unit: "BPH", status: "Aktif", nim: "121140045", batch: "2021" },
-    { id: "3", name: "Daniel Hutapea", role: "Kepala Divisi", unit: "Divisi Ibadah", status: "Aktif", nim: "122140023", batch: "2022" },
-    { id: "4", name: "Grace Lumbantoruan", role: "Staff Divisi", unit: "Divisi Media", status: "Aktif", nim: "123140012", batch: "2023" },
-  ]);
+  const apiBaseUrl = API_BASE_URL;
+  const { state: session } = useSession();
+  const [members, setMembers] = useState<MemberRow[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [membersError, setMembersError] = useState<string | null>(null);
 
-  const [liveActivities, setLiveActivities] = useState<Array<{ id: string; text: string; time: string; topic: string }>>([
-    { id: "init_1", text: "Periode 2026/2027 diverifikasi aktif oleh database", time: "Hari ini, 07:15", topic: "periods" },
-    { id: "init_2", text: "Penugasan pengurus Divisi Ibadah diverifikasi", time: "Kemarin, 16:20", topic: "assignments" },
-    { id: "init_3", text: "Sync SSO OIDC PI-NEXUS & PI-LYNK siap melayani", time: "2 hari lalu", topic: "integrations" },
-  ]);
+  const [liveActivities, setLiveActivities] = useState<Array<{ id: string; text: string; time: string; topic: string }>>([]);
+
+  /**
+   * Reads the six most recently updated members through the bearer-token client.
+   *
+   * `sensitiveIncluded` is deliberately not assumed: NIM is present only when the signed-in member
+   * holds `member:read_sensitive` (FR-9), so a row without it renders a dash rather than a guess.
+   */
+  const loadMembers = useCallback(async (): Promise<void> => {
+    if (session.status !== "authenticated") {
+      setMembers([]);
+      return;
+    }
+    setMembersLoading(true);
+    setMembersError(null);
+    try {
+      const response = await apiFetch("/api/v1/members?limit=6");
+      if (!response.ok) throw new Error(`HTTP ${String(response.status)}`);
+      const payload = (await response.json()) as {
+        items?: Array<{
+          id: string;
+          fullName?: string;
+          email: string;
+          nim?: string | null;
+          status: string;
+        }>;
+      };
+      setMembers(
+        (payload.items ?? []).map((item) => ({
+          id: item.id,
+          name: item.fullName ?? item.email,
+          email: item.email,
+          nim: item.nim ?? null,
+          status: item.status,
+        })),
+      );
+    } catch (error) {
+      setMembers([]);
+      setMembersError(
+        error instanceof Error ? error.message : "Gagal memuat anggota.",
+      );
+    } finally {
+      setMembersLoading(false);
+    }
+  }, [session.status]);
+
+  useEffect(() => {
+    void loadMembers();
+  }, [loadMembers]);
 
   useRealtime({
     apiBaseUrl,
@@ -55,11 +109,41 @@ export default function DashboardPage(): JSX.Element {
     },
   });
 
-  function handleAddMember(form: MemberForm) {
-    setMembers((prev) => [
-      { id: String(Date.now()), name: form.fullName, role: "Anggota", unit: "Anggota Biasa", status: "Aktif", nim: form.nim || "124140099", batch: form.cohortYear || "2024" },
-      ...prev,
-    ]);
+  /**
+   * Creates the member through the API (FR-10: the request body is `.strict()`, so the payload is
+   * built field by field and empty strings become `null` rather than being sent as "").
+   */
+  async function handleAddMember(form: MemberForm): Promise<void> {
+    const orNull = (value: string): string | null =>
+      value.trim() === "" ? null : value.trim();
+    const cohortYear = form.cohortYear.trim() === "" ? null : Number(form.cohortYear);
+
+    const response = await apiFetch("/api/v1/members", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        email: form.email.trim(),
+        fullName: form.fullName.trim(),
+        nim: orNull(form.nim),
+        faculty: orNull(form.faculty),
+        studyProgram: orNull(form.studyProgram),
+        cohortYear,
+        phone: orNull(form.phone),
+      }),
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as {
+        error?: { message?: string };
+      } | null;
+      setMembersError(
+        payload?.error?.message ??
+          `Gagal menyimpan anggota (HTTP ${String(response.status)}).`,
+      );
+      return;
+    }
+
+    await loadMembers();
   }
 
   return (
@@ -76,7 +160,7 @@ export default function DashboardPage(): JSX.Element {
                 Pantau seluruh identitas anggota, struktur organisasi, izin peranan (RBAC), dan otentikasi SSO dalam satu dashboard.
               </p>
             </div>
-            <MemberSheet onSave={handleAddMember} />
+            <MemberSheet onSave={(form) => void handleAddMember(form)} />
           </section>
 
           {/* Stat Cards */}
@@ -88,10 +172,12 @@ export default function DashboardPage(): JSX.Element {
                   <Users size={18} />
                 </div>
               </div>
-              <strong className="stat-value">{members.length + 124}</strong>
+              <strong className="stat-value">
+                {session.status === "authenticated" ? members.length : "—"}
+              </strong>
               <div className="stat-meta">
                 <TrendingUp size={14} />
-                <span>Terverifikasi Aktif</span>
+                <span>Terbaru dari API</span>
               </div>
             </article>
 
@@ -102,7 +188,11 @@ export default function DashboardPage(): JSX.Element {
                   <CalendarRange size={18} />
                 </div>
               </div>
-              <strong className="stat-value">2026/2027</strong>
+              <strong className="stat-value">
+                {session.status === "authenticated"
+                  ? (session.access.activePeriod?.label ?? "Belum ada")
+                  : "—"}
+              </strong>
               <div className="stat-meta" style={{ color: "#059669" }}>
                 <span className="badge-dot" style={{ backgroundColor: "#059669" }} />
                 <span>Masa Bakti Berjalan</span>
@@ -157,46 +247,67 @@ export default function DashboardPage(): JSX.Element {
                   <thead>
                     <tr>
                       <th>Mahasiswa</th>
-                      <th>NIM / Angkatan</th>
-                      <th>Penugasan / Unit</th>
+                      <th>NIM</th>
                       <th>Status</th>
                       <th style={{ textAlign: "right" }}>Aksi</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {members.map((m) => (
-                      <tr key={m.id}>
-                        <td>
-                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                            <div className="avatar avatar-sm">
-                              {m.name.split(" ").map(n => n[0]).slice(0, 2).join("")}
-                            </div>
-                            <div>
-                              <strong style={{ color: "var(--color-heading)", display: "block" }}>{m.name}</strong>
-                              <span style={{ fontSize: 11.5, color: "var(--color-muted)" }}>{m.role}</span>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          <span style={{ fontWeight: 600, color: "var(--color-heading-secondary)" }}>{m.nim}</span>
-                          <span style={{ fontSize: 11.5, color: "var(--color-muted)", display: "block" }}>Angkatan {m.batch}</span>
-                        </td>
-                        <td>
-                          <span className="badge badge-gold">{m.unit}</span>
-                        </td>
-                        <td>
-                          <span className="badge badge-green">
-                            <span className="badge-dot" />
-                            {m.status}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: "right" }}>
-                          <Link href="/anggota" className="button button-secondary" style={{ minHeight: 30, padding: "4px 10px", fontSize: 11.5 }}>
-                            Detail
-                          </Link>
+                    {session.status !== "authenticated" ? (
+                      <tr>
+                        <td colSpan={4} style={{ padding: "20px 16px", textAlign: "center", color: "var(--color-muted)", fontSize: 13 }}>
+                          Masuk dengan Google untuk melihat data anggota yang sebenarnya.
                         </td>
                       </tr>
-                    ))}
+                    ) : membersLoading ? (
+                      <tr>
+                        <td colSpan={4} style={{ padding: "20px 16px", textAlign: "center", color: "var(--color-muted)", fontSize: 13 }}>
+                          Memuat anggota…
+                        </td>
+                      </tr>
+                    ) : membersError !== null ? (
+                      <tr>
+                        <td colSpan={4} style={{ padding: "20px 16px", textAlign: "center", color: "#b91c1c", fontSize: 13 }}>
+                          {membersError}
+                        </td>
+                      </tr>
+                    ) : members.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} style={{ padding: "20px 16px", textAlign: "center", color: "var(--color-muted)", fontSize: 13 }}>
+                          Belum ada anggota pada lingkup akun ini.
+                        </td>
+                      </tr>
+                    ) : (
+                      members.map((m) => (
+                        <tr key={m.id}>
+                          <td>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <div className="avatar avatar-sm">
+                                {m.name.split(" ").map(n => n[0]).slice(0, 2).join("")}
+                              </div>
+                              <div>
+                                <strong style={{ color: "var(--color-heading)", display: "block" }}>{m.name}</strong>
+                                <span style={{ fontSize: 11.5, color: "var(--color-muted)" }}>{m.email}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <span style={{ fontWeight: 600, color: "var(--color-heading-secondary)" }}>{m.nim ?? "—"}</span>
+                          </td>
+                          <td>
+                            <span className={m.status === "active" ? "badge badge-green" : "badge badge-gold"}>
+                              <span className="badge-dot" />
+                              {m.status}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: "right" }}>
+                            <Link href="/anggota" className="button button-secondary" style={{ minHeight: 30, padding: "4px 10px", fontSize: 11.5 }}>
+                              Detail
+                            </Link>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -296,6 +407,11 @@ export default function DashboardPage(): JSX.Element {
             </div>
 
             <div style={{ display: "grid", gap: 12 }}>
+              {liveActivities.length === 0 ? (
+                <div style={{ padding: "12px 16px", borderRadius: 10, backgroundColor: "#fbfbfa", border: "1px solid rgba(0,0,0,0.04)", color: "var(--color-muted)", fontSize: 13 }}>
+                  Belum ada aktivitas pada sesi ini. Peristiwa baru akan muncul di sini saat data berubah.
+                </div>
+              ) : null}
               {liveActivities.map((act) => (
                 <div
                   key={act.id}
