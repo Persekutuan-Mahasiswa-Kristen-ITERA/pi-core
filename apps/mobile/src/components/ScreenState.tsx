@@ -2,13 +2,14 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { tokens } from "../theme/tokens";
 
-type ScreenStateKind = "loading" | "error" | "forbidden" | "offline";
+type ScreenStateKind = "loading" | "error" | "forbidden" | "offline" | "unauthorized";
 
 const copy: Record<ScreenStateKind, { title: string; body: string }> = {
   loading: { title: "Memuat data…", body: "Mohon tunggu sebentar." },
   error: { title: "Data belum tersedia", body: "Terjadi kendala saat mengambil data." },
   forbidden: { title: "Akses ditolak", body: "Anda tidak memiliki izin untuk melihat halaman ini." },
   offline: { title: "Tidak ada koneksi", body: "Periksa koneksi internet lalu coba lagi." },
+  unauthorized: { title: "Sesi berakhir", body: "Masuk ulang untuk melanjutkan." },
 };
 
 export function ScreenState({ kind, onRetry }: { kind: ScreenStateKind; onRetry?: () => void }) {

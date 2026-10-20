@@ -17,6 +17,10 @@ import { AppIcon, type IconName } from "./src/components/AppIcon";
 import { AuthScreen } from "./src/auth/AuthScreen";
 import { DirectoryScreen } from "./src/screens/DirectoryScreen";
 import { IntegrationsScreen } from "./src/screens/IntegrationsScreen";
+import {
+  fetchDashboardSummary,
+  type DashboardSummary,
+} from "./src/api/resources";
 
 import { tokens, type AppTab, tabLabels } from "./src/theme/tokens";
 
@@ -265,6 +269,28 @@ export default function App() {
 }
 
 function Dashboard({ onOpenDirectory }: { onOpenDirectory: () => void }) {
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    void fetchDashboardSummary()
+      .then(setSummary)
+      .catch(() => setFailed(true));
+  }, []);
+
+  // Three states, never a guess: still loading, could not load, or the real count.
+  const placeholder = failed ? "—" : "…";
+  const memberValue =
+    summary === null ? placeholder : `${String(summary.memberCount)}${summary.memberCountIsFloor ? "+" : ""}`;
+  const periodValue = summary === null ? placeholder : (summary.activePeriodLabel ?? "Belum ada");
+  const roleValue = summary === null ? placeholder : `${String(summary.roleCount)} Peran`;
+  const permissionValue =
+    summary === null
+      ? failed
+        ? "Tidak dapat dimuat"
+        : "Memuat…"
+      : `${String(summary.permissionCount)} izin pada peran aktif`;
+
   return (
     <>
       <View style={styles.welcome}>
@@ -277,9 +303,25 @@ function Dashboard({ onOpenDirectory }: { onOpenDirectory: () => void }) {
 
       <Text style={styles.sectionTitle}>Ringkasan Sistem</Text>
       <View style={styles.statGrid}>
-        <StatCard label="Total Anggota" value="128" delta="Terverifikasi Aktif" icon="people" />
-        <StatCard label="Periode Kepengurusan" value="2026/2027" delta="Sedang Berjalan" icon="calendar" />
-        <StatCard label="Peran Otorisasi (RBAC)" value="10 Peran" delta="23 Granular Permissions" icon="shield-checkmark" />
+        <StatCard
+          label="Total Anggota"
+          value={memberValue}
+          delta={
+            summary === null
+              ? failed
+                ? "Tidak dapat dimuat"
+                : "Memuat…"
+              : `${String(summary.activeMemberCount)} aktif`
+          }
+          icon="people"
+        />
+        <StatCard
+          label="Periode Kepengurusan"
+          value={periodValue}
+          delta={summary === null ? (failed ? "Tidak dapat dimuat" : "Memuat…") : "Sedang berjalan"}
+          icon="calendar"
+        />
+        <StatCard label="Peran Otorisasi (RBAC)" value={roleValue} delta={permissionValue} icon="shield-checkmark" />
       </View>
 
       <View style={styles.sectionRow}>
@@ -306,31 +348,53 @@ function Dashboard({ onOpenDirectory }: { onOpenDirectory: () => void }) {
 }
 
 function ReportsScreen() {
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    void fetchDashboardSummary()
+      .then(setSummary)
+      .catch(() => setFailed(true));
+  }, []);
+
+  const units = summary?.unitsByType ?? {};
+  const countOf = (type: string): string => {
+    if (summary === null) return failed ? "—" : "…";
+    return `${String(units[type] ?? 0)} unit`;
+  };
+
   return (
     <View style={{ gap: 14 }}>
       <Text style={styles.sectionTitle}>Laporan Struktur Organisasi</Text>
       <Text style={{ color: tokens.colors.muted, fontSize: 13, lineHeight: 18 }}>
-        Struktur resmi organisasi PMK ITERA berdasarkan ADR-0002.
+        Struktur resmi organisasi PMK ITERA berdasarkan ADR-0002, dihitung dari unit yang terdaftar.
       </Text>
       <View style={styles.statCard}>
         <Text style={styles.statLabel}>BADAN PENGURUS HARIAN (BPH)</Text>
-        <Text style={styles.statValue}>1 Unit Pusat</Text>
+        <Text style={styles.statValue}>{countOf("bph")}</Text>
         <Text style={{ color: tokens.colors.body, fontSize: 12.5, marginTop: 4 }}>
           Ketua Umum, Wakil Ketua, Sekretaris Umum, Bendahara Umum.
         </Text>
       </View>
       <View style={styles.statCard}>
-        <Text style={styles.statLabel}>DEPARTEMEN & BIRO</Text>
-        <Text style={styles.statValue}>8 Unit Pelaksana</Text>
+        <Text style={styles.statLabel}>DEPARTEMEN &amp; BIRO</Text>
+        <Text style={styles.statValue}>{countOf("department")}</Text>
         <Text style={{ color: tokens.colors.body, fontSize: 12.5, marginTop: 4 }}>
-          7 Departemen (Pelayanan, Media, Musik, dll.) + 1 Biro Bendahara.
+          Unit pelaksana di bawah BPH.
+        </Text>
+      </View>
+      <View style={styles.statCard}>
+        <Text style={styles.statLabel}>BIRO</Text>
+        <Text style={styles.statValue}>{countOf("bureau")}</Text>
+        <Text style={{ color: tokens.colors.body, fontSize: 12.5, marginTop: 4 }}>
+          Unit setingkat departemen dengan fungsi pendukung.
         </Text>
       </View>
       <View style={styles.statCard}>
         <Text style={styles.statLabel}>DIVISI OPERASIONAL</Text>
-        <Text style={styles.statValue}>16 Divisi</Text>
+        <Text style={styles.statValue}>{countOf("division")}</Text>
         <Text style={{ color: tokens.colors.body, fontSize: 12.5, marginTop: 4 }}>
-          Mencakup Divisi Ibadah, Doa, Kreatif, Sound, Humas, dan Harmonisasi.
+          Divisi di bawah departemen atau biro.
         </Text>
       </View>
     </View>
