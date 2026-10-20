@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import type { JSX, ReactNode } from "react";
-import { PreviewNotice } from "../components/PreviewNotice";
 import { SessionProvider } from "../lib/session";
 import "./globals.css";
 
@@ -34,10 +33,7 @@ export default function RootLayout({ children }: { children: ReactNode }): JSX.E
           page's cross-site calls. Every screen therefore reads identity and permissions from
           `/api/v1/access` with a bearer token (ADR-0018).
         */}
-        <SessionProvider>
-          <PreviewNotice />
-          {children}
-        </SessionProvider>
+        <SessionProvider>{children}</SessionProvider>
       </body>
     </html>
   );

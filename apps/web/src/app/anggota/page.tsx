@@ -32,6 +32,7 @@ export default function AnggotaPage(): JSX.Element {
   const authenticated = session.state.status === "authenticated";
 
   const [members, setMembers] = useState<MemberRow[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [sensitiveIncluded, setSensitiveIncluded] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +62,7 @@ export default function AnggotaPage(): JSX.Element {
       }
       const body = (await response.json()) as MembersResponse;
       setMembers(body.items);
+      setNextCursor(body.nextCursor);
       setSensitiveIncluded(body.sensitiveIncluded);
     } catch {
       setError("Tidak dapat menghubungi API. Periksa koneksi lalu coba lagi.");
@@ -72,6 +74,29 @@ export default function AnggotaPage(): JSX.Element {
   useEffect(() => {
     void load();
   }, [load]);
+
+  /** The list is cursor-paged; without this the table would show the first page as if it were all. */
+  async function loadMore(): Promise<void> {
+    if (nextCursor === null) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiFetch(
+        `/api/v1/members?limit=${String(PAGE_SIZE)}&cursor=${encodeURIComponent(nextCursor)}`,
+      );
+      if (!response.ok) {
+        setError(`Gagal memuat halaman berikutnya (HTTP ${String(response.status)}).`);
+        return;
+      }
+      const body = (await response.json()) as MembersResponse;
+      setMembers((previous) => [...previous, ...body.items]);
+      setNextCursor(body.nextCursor);
+    } catch {
+      setError("Tidak dapat menghubungi API.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   /** The dashboard creates through the same endpoint, so they share its `.strict()` body. */
   async function handleAdd(form: MemberForm): Promise<void> {
@@ -233,7 +258,7 @@ export default function AnggotaPage(): JSX.Element {
             <span style={{ fontSize: 12.5, color: "var(--color-muted)", marginLeft: "auto", fontWeight: 500 }}>
               {loading
                 ? "Memuat…"
-                : `Menampilkan ${String(filtered.length)} dari ${String(members.length)} anggota`}
+                : `Menampilkan ${String(filtered.length)} dari ${String(members.length)} anggota terambil${nextCursor !== null ? " (masih ada lagi)" : ""}`}
             </span>
           </div>
 
@@ -363,6 +388,19 @@ export default function AnggotaPage(): JSX.Element {
                 </tbody>
               </table>
             </div>
+
+            {nextCursor !== null ? (
+              <div style={{ padding: "12px 16px", borderTop: "1px solid rgba(0,0,0,0.06)", textAlign: "center" }}>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  disabled={loading}
+                  onClick={() => void loadMore()}
+                >
+                  {loading ? "Memuat…" : "Muat lebih banyak"}
+                </button>
+              </div>
+            ) : null}
           </div>
         </main>
       </div>
