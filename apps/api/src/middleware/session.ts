@@ -60,18 +60,54 @@ function bearerValue(header: string | undefined): string | null {
   return /^Bearer\s+(\S+)$/i.exec(header ?? "")?.[1] ?? null;
 }
 
+/** An OAuth access token is a JWS; the mobile hand-off issues an opaque random string instead. */
+export function looksLikeJwt(token: string): boolean {
+  return token.split(".").length === 3;
+}
+
+/**
+ * Subject behind an **opaque** session token — the mobile hand-off writes one row in `auth_sessions`
+ * (`routes/mobile-auth.ts`) and the app sends it as a bearer. It carries no signed claims, so trust
+ * comes only from the row existing and not being expired; admission is still re-checked by the caller
+ * on every request, exactly as for a cookie session.
+ *
+ * The lookup is injected so the "unknown or expired" decision is testable without a database.
+ */
+export async function opaqueSessionSubject(
+  lookup: (token: string) => Promise<{ userId: string; expiresAt: Date } | null>,
+  token: string,
+  now: number = Date.now(),
+): Promise<string | null> {
+  const row = await lookup(token);
+  if (row === null) return null;
+  const expiresAt = new Date(row.expiresAt).getTime();
+  return Number.isFinite(expiresAt) && expiresAt > now ? row.userId : null;
+}
+
 /**
  * Resolves the subject of a bearer token, or `null` when it cannot be trusted.
  *
- * A malformed token is refused without touching the database: it has no signed claims to verify, and
- * an unauthenticated request must not be able to spend a Postgres connection.
+ * Two shapes reach here: a signed access token from an OAuth client, and the opaque session token the
+ * mobile app received from the hand-off. A token of neither shape is refused without touching the
+ * database — it has nothing to verify, and an unauthenticated request must not spend a connection on
+ * it unless the cheap shape check passed.
  */
 async function accessTokenSubject(
   c: Context<AppEnv>,
   db: Database,
   token: string,
 ): Promise<string | null> {
-  if (token.split(".").length !== 3) return null;
+  if (!looksLikeJwt(token)) {
+    return opaqueSessionSubject(async (value) => {
+      const rows = await db
+        .select({ userId: authSessions.userId, expiresAt: authSessions.expiresAt })
+        .from(authSessions)
+        .where(eq(authSessions.token, value))
+        .limit(1);
+      const row = rows[0];
+      return row === undefined ? null : { userId: row.userId, expiresAt: new Date(row.expiresAt) };
+    }, token);
+  }
 
   try {
     const claims = await verifyAccessTokenWithLocalJwks(
@@ -104,9 +140,13 @@ export const sessionMiddleware = createMiddleware<AppEnv>(async (c, next) => {
 
     const request = requestFacts(c);
     const bearer = bearerValue(c.req.header("authorization"));
+    const queryToken = c.req.query("token");
+    // A WebSocket handshake cannot carry an `Authorization` header, so the realtime route takes the
+    // token in the query string. Both credentials go through the same verification.
+    const credential = bearer ?? (queryToken !== undefined && queryToken !== "" ? queryToken : null);
 
-    if (bearer !== null) {
-      const subject = await accessTokenSubject(c, db, bearer);
+    if (credential !== null) {
+      const subject = await accessTokenSubject(c, db, credential);
       if (subject !== null) {
         const admission = await resolveSessionAdmission(db, subject, request);
         if (admission.decision.allowed) {
@@ -115,12 +155,14 @@ export const sessionMiddleware = createMiddleware<AppEnv>(async (c, next) => {
           const email = admission.member?.email;
           if (email !== undefined) c.set("sessionEmail", email);
         }
+        return next();
       }
-      return next();
+      // A refused bearer ends here: the request named its credential. A refused *query* token may
+      // still be a Better Auth session token, which the cookie path below resolves.
+      if (bearer !== null) return next();
     }
 
     const headers = new Headers(c.req.raw.headers);
-    const queryToken = c.req.query("token");
     if (queryToken && !headers.has("cookie") && !headers.has("authorization")) {
       headers.set("cookie", `better-auth.session_token=${queryToken}`);
     }
