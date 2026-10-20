@@ -25,7 +25,22 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }): JSX.Element {
   return (
     <html lang="id" className={`${plusJakarta.variable} ${inter.variable}`}>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        {/*
+          Every admin screen except Integrations still renders sample rows and never calls the API.
+          That is not cosmetic: the web and API Workers are separate `*.workers.dev` sites, and the
+          Better Auth session cookie is `SameSite=Lax`, so a cross-site XHR from this page cannot
+          carry it — `/api/v1/*` answers 401. Until the origin topology is settled (custom domain vs.
+          same-origin proxy; ADR pending) nobody should read these rows as real PMK data.
+        */}
+        <div
+          role="status"
+          className="border-b border-amber-300 bg-amber-50 px-4 py-2 text-center text-xs font-semibold text-amber-900"
+        >
+          Pratinjau UI — baris data pada halaman ini masih contoh dan belum tersambung ke API PI-CORE.
+        </div>
+        {children}
+      </body>
     </html>
   );
 }
