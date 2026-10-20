@@ -1,35 +1,150 @@
 "use client";
 
-import { useState, type JSX } from "react";
-import { Activity, Shield, Filter, Lock, Clock, Globe, Terminal } from "lucide-react";
+import { useCallback, useEffect, useState, type JSX } from "react";
+import { Filter, Lock, Clock, Globe, RefreshCw, ShieldAlert } from "lucide-react";
 import { Sidebar, MobileNav } from "../../components/Sidebar";
 import { TopHeader } from "../../components/TopHeader";
+import { apiFetch } from "../../lib/api-client";
+import { useSession } from "../../lib/session";
 
-type AuditItem = {
+/** `AuditEntryView` in `packages/db/src/audit-log.ts` — `before`/`after` are already redacted. */
+interface AuditEntry {
   id: string;
-  actor: string;
-  action: "CREATE" | "UPDATE" | "DELETE" | "ROTATE_SECRET" | "ACTIVATE";
-  entity: string;
-  details: string;
-  timestamp: string;
-  ip: string;
-};
+  at: string;
+  actorMemberId: string | null;
+  actorName: string | null;
+  action: string;
+  entityType: string;
+  entityId: string;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  ip: string | null;
+  userAgent: string | null;
+  requestId: string | null;
+}
 
-const INITIAL_AUDITS: AuditItem[] = [
-  { id: "aud_1", actor: "febryan.admin@itera.ac.id", action: "ACTIVATE", entity: "period", details: "Periode 2026/2027 diaktifkan (periods_single_active_uq enforced)", timestamp: "Hari ini, 07:15", ip: "103.111.201.4" },
-  { id: "aud_2", actor: "febryan.admin@itera.ac.id", action: "CREATE", entity: "member", details: "Menambahkan anggota baru Grace Lumbantoruan (Farmasi)", timestamp: "Kemarin, 14:22", ip: "103.111.201.4" },
-  { id: "aud_3", actor: "febryan.admin@itera.ac.id", action: "CREATE", entity: "assignment", details: "Penugasan Kepala Divisi Ibadah: Daniel Hutapea", timestamp: "16 Okt 2026, 11:05", ip: "103.111.201.4" },
-  { id: "aud_4", actor: "febryan.admin@itera.ac.id", action: "ROTATE_SECRET", entity: "integration", details: "Rotasi rahasia OAuth Client PI-NEXUS (AES-256 encrypted)", timestamp: "15 Okt 2026, 18:40", ip: "103.111.201.4" },
-  { id: "aud_5", actor: "febryan.admin@itera.ac.id", action: "UPDATE", entity: "settings", details: "Pembaruan domain whitelist email ITERA", timestamp: "15 Okt 2026, 10:12", ip: "103.111.201.4" },
-];
+interface AuditPage {
+  items: AuditEntry[];
+  nextCursor: string | null;
+}
+
+const PAGE_SIZE = 50;
+
+function formatValue(value: unknown): string {
+  if (value === null || value === undefined) return "kosong";
+  const text = typeof value === "string" ? value : JSON.stringify(value);
+  return text.length > 40 ? `${text.slice(0, 40)}…` : text;
+}
+
+/**
+ * Audit rows store the whole row before and after the mutation, so a diff is the honest summary.
+ * Field names only — the values were redacted on the way out for anything sensitive.
+ */
+function describeChange(entry: AuditEntry): string {
+  const { before, after } = entry;
+  if (after === null && before !== null) return `Dihapus — ${Object.keys(before).length} field`;
+  if (after === null) return "—";
+  if (before === null) {
+    const keys = Object.keys(after);
+    return `Dibuat — ${keys.slice(0, 4).join(", ")}${keys.length > 4 ? ` (+${String(keys.length - 4)})` : ""}`;
+  }
+
+  const changed = Object.keys(after).filter(
+    (key) => JSON.stringify(before[key] ?? null) !== JSON.stringify(after[key] ?? null),
+  );
+  if (changed.length === 0) return "Tanpa perubahan nilai";
+  const shown = changed
+    .slice(0, 2)
+    .map((key) => `${key}: ${formatValue(before[key])} → ${formatValue(after[key])}`)
+    .join("; ");
+  return changed.length > 2 ? `${shown} (+${String(changed.length - 2)} field lain)` : shown;
+}
+
+function actionBadgeClass(action: string): string {
+  if (action.includes("create") || action.includes("add")) return "badge badge-green";
+  if (action.includes("delete") || action.includes("remove") || action.includes("deactivat")) {
+    return "badge badge-gray";
+  }
+  if (action.includes("activate")) return "badge badge-gold";
+  return "badge badge-blue";
+}
 
 export default function AuditLogPage(): JSX.Element {
+  const session = useSession();
+  const authenticated = session.state.status === "authenticated";
+
+  const [entries, setEntries] = useState<AuditEntry[]>([]);
+  const [actions, setActions] = useState<string[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("Semua");
 
-  const filtered = INITIAL_AUDITS.filter((a) => {
-    if (filter === "Semua") return true;
-    return a.action === filter;
-  });
+  const load = useCallback(
+    async (action: string, cursor: string | null): Promise<void> => {
+      if (!authenticated) {
+        setEntries([]);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      try {
+        const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
+        if (action !== "Semua") params.set("action", action);
+        if (cursor !== null) params.set("cursor", cursor);
+
+        const response = await apiFetch(`/api/v1/audit?${params.toString()}`);
+        if (response.status === 401) {
+          setError("Sesi berakhir. Masuk kembali untuk melihat log audit.");
+          setEntries([]);
+          return;
+        }
+        if (response.status === 403) {
+          // The log is org-wide: a unit-scoped actor holds audit:read but cannot be served, and the
+          // server refuses rather than narrowing. Say that instead of showing an empty table.
+          setError("Log audit bersifat organisasi-wide dan tidak bisa dipersempit per unit, jadi peran Anda belum berhak membacanya.");
+          setEntries([]);
+          return;
+        }
+        if (!response.ok) {
+          setError(`Gagal memuat log audit (HTTP ${String(response.status)}).`);
+          return;
+        }
+
+        const body = (await response.json()) as AuditPage;
+        setEntries((previous) => (cursor === null ? body.items : [...previous, ...body.items]));
+        setNextCursor(body.nextCursor);
+      } catch {
+        setError("Tidak dapat menghubungi API. Periksa koneksi lalu coba lagi.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [authenticated],
+  );
+
+  useEffect(() => {
+    void load(filter, null);
+  }, [load, filter]);
+
+  // The chips come from the log itself, so a filter can never offer an action that matches nothing.
+  useEffect(() => {
+    if (!authenticated) return;
+    void (async () => {
+      try {
+        const response = await apiFetch("/api/v1/audit/actions");
+        if (!response.ok) return;
+        const body = (await response.json()) as { items: string[] };
+        setActions(body.items);
+      } catch {
+        // The chips are a convenience; the table still works without them.
+      }
+    })();
+  }, [authenticated]);
+
+  const chips = ["Semua", ...actions];
 
   return (
     <div className="shell">
@@ -39,17 +154,35 @@ export default function AuditLogPage(): JSX.Element {
         <main className="content">
           <div className="page-heading">
             <div>
-              <p className="eyebrow">Keamanan & Kepatuhan</p>
+              <p className="eyebrow">Keamanan &amp; Kepatuhan</p>
               <h1>Log Audit Keamanan (Append-Only)</h1>
               <p className="subtitle">
-                Catatan mutasi data permanen yang tidak dapat diubah maupun dihapus (Anti-Tamper DB Trigger aktif).
+                Catatan mutasi data permanen. Nilai sensitif sudah dihapus di server sebelum dikirim, jadi
+                yang tampil tidak pernah memuat rahasia.
               </p>
             </div>
             <span className="badge badge-gold" style={{ padding: "8px 14px", fontSize: 12 }}>
               <Lock size={13} />
-              <span>Immutable Anti-Tamper Trigger Active</span>
+              <span>Append-only</span>
             </span>
           </div>
+
+          {error !== null ? (
+            <div
+              className="card"
+              style={{ padding: "10px 14px", marginBottom: 16, fontSize: 13, borderColor: "var(--color-negative)" }}
+            >
+              <strong style={{ color: "var(--color-negative)" }}>Tidak dapat menampilkan log.</strong> {error}
+              <button
+                className="button button-secondary"
+                type="button"
+                style={{ marginLeft: 12, minHeight: 28, padding: "2px 10px", fontSize: 12 }}
+                onClick={() => void load(filter, null)}
+              >
+                <RefreshCw size={13} /> Coba lagi
+              </button>
+            </div>
+          ) : null}
 
           <div className="filter-bar">
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -57,15 +190,15 @@ export default function AuditLogPage(): JSX.Element {
               <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-heading)" }}>Filter Aksi:</span>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {["Semua", "CREATE", "UPDATE", "DELETE", "ACTIVATE", "ROTATE_SECRET"].map((act) => (
+              {chips.map((action) => (
                 <button
-                  key={act}
+                  key={action}
                   type="button"
-                  className={`button ${filter === act ? "button-gold" : "button-secondary"}`}
+                  className={`button ${filter === action ? "button-gold" : "button-secondary"}`}
                   style={{ minHeight: 32, padding: "4px 12px", fontSize: 12 }}
-                  onClick={() => setFilter(act)}
+                  onClick={() => setFilter(action)}
                 >
-                  {act}
+                  {action}
                 </button>
               ))}
             </div>
@@ -78,67 +211,120 @@ export default function AuditLogPage(): JSX.Element {
                   <tr>
                     <th>Waktu Kejadian</th>
                     <th>Tipe Aksi</th>
-                    <th>Aktor Pengguna</th>
-                    <th>Entitas Target</th>
-                    <th>Rincian Operasi</th>
-                    <th>IP Address</th>
+                    <th>Aktor</th>
+                    <th>Entitas</th>
+                    <th>Rincian Perubahan</th>
+                    <th>IP</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((a) => (
-                    <tr key={a.id}>
-                      <td>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-muted)", fontSize: 12.5 }}>
-                          <Clock size={13} />
-                          <span>{a.timestamp}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <span
-                          className={`badge ${
-                            a.action === "CREATE"
-                              ? "badge-green"
-                              : a.action === "ACTIVATE"
-                              ? "badge-gold"
-                              : a.action === "ROTATE_SECRET"
-                              ? "badge-blue"
-                              : "badge-gray"
-                          }`}
+                  {!authenticated && !loading ? (
+                    <tr>
+                      <td colSpan={6} style={{ textAlign: "center", padding: "48px 16px" }}>
+                        <ShieldAlert
+                          size={36}
+                          style={{ margin: "0 auto 12px", color: "var(--color-muted)", opacity: 0.5 }}
+                        />
+                        <strong style={{ display: "block", color: "var(--color-heading)", fontSize: 15 }}>
+                          Masuk untuk melihat log audit
+                        </strong>
+                        <button
+                          className="button button-primary"
+                          type="button"
+                          style={{ marginTop: 12 }}
+                          onClick={() => void session.signIn()}
                         >
-                          <span className="badge-dot" />
-                          {a.action}
-                        </span>
-                      </td>
-                      <td>
-                        <strong style={{ fontSize: 13.5, color: "var(--color-heading)" }}>{a.actor}</strong>
-                      </td>
-                      <td>
-                        <code
-                          style={{
-                            padding: "3px 8px",
-                            borderRadius: 6,
-                            backgroundColor: "rgba(0,0,0,0.05)",
-                            fontSize: 12,
-                            fontWeight: 600,
-                          }}
-                        >
-                          {a.entity}
-                        </code>
-                      </td>
-                      <td style={{ maxWidth: 360, color: "var(--color-body)", fontSize: 13 }}>
-                        {a.details}
-                      </td>
-                      <td>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-muted)", fontSize: 12 }}>
-                          <Globe size={13} />
-                          <span>{a.ip}</span>
-                        </div>
+                          Masuk dengan Google
+                        </button>
                       </td>
                     </tr>
-                  ))}
+                  ) : entries.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        style={{ textAlign: "center", padding: "48px 16px", color: "var(--color-muted)" }}
+                      >
+                        {loading ? "Memuat log…" : "Belum ada catatan audit untuk filter ini."}
+                      </td>
+                    </tr>
+                  ) : (
+                    entries.map((entry) => (
+                      <tr key={entry.id}>
+                        <td>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 6,
+                              color: "var(--color-muted)",
+                              fontSize: 12.5,
+                            }}
+                          >
+                            <Clock size={13} />
+                            <span>{new Date(entry.at).toLocaleString("id-ID")}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <span className={actionBadgeClass(entry.action)}>
+                            <span className="badge-dot" />
+                            {entry.action}
+                          </span>
+                        </td>
+                        <td>
+                          <strong style={{ fontSize: 13.5, color: "var(--color-heading)" }}>
+                            {entry.actorName ?? entry.actorMemberId ?? "sistem"}
+                          </strong>
+                        </td>
+                        <td>
+                          <code
+                            style={{
+                              padding: "3px 8px",
+                              borderRadius: 6,
+                              backgroundColor: "rgba(0,0,0,0.05)",
+                              fontSize: 12,
+                              fontWeight: 600,
+                            }}
+                            title={entry.entityId}
+                          >
+                            {entry.entityType}
+                          </code>
+                        </td>
+                        <td style={{ maxWidth: 360, color: "var(--color-body)", fontSize: 13 }}>
+                          {describeChange(entry)}
+                        </td>
+                        <td>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 6,
+                              color: "var(--color-muted)",
+                              fontSize: 12,
+                            }}
+                          >
+                            <Globe size={13} />
+                            <span>{entry.ip ?? "—"}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
+
+            {nextCursor !== null ? (
+              <div style={{ padding: "12px 16px", borderTop: "1px solid rgba(0,0,0,0.06)", textAlign: "center" }}>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  disabled={loading}
+                  onClick={() => void load(filter, nextCursor)}
+                >
+                  {loading ? "Memuat…" : "Muat lebih banyak"}
+                </button>
+              </div>
+            ) : null}
           </div>
         </main>
       </div>
