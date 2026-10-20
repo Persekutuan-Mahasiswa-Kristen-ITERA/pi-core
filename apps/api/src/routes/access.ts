@@ -1,35 +1,12 @@
-import { loadAccessSnapshot, loadJwks, withDb, type Database } from "@pi-core/db";
-import { oauthProviderResourceClient } from "@better-auth/oauth-provider/resource-client";
+import { loadAccessSnapshot, withDb } from "@pi-core/db";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import type { AppEnv } from "../env";
 import { accessRateLimit } from "../middleware/rate-limit";
 import { unauthorized, forbidden } from "../http/errors";
+import { accessTokenAudience, verifyAccessTokenWithLocalJwks } from "../oauth/verify-access-token";
 
 export const accessRoutes = new Hono<AppEnv>();
-
-const resourceClient = oauthProviderResourceClient();
-
-/**
- * Verifies an OAuth access token against the issuer's own signing keys.
- *
- * The keys are read **in-process** from the `jwks` table and handed to the provider's verifier as
- * a function rather than as a URL. That is deliberate: on Cloudflare Workers a subrequest from the
- * Worker back to its own `*.workers.dev` hostname answers 404, which made every real token fail
- * with `Jwks failed: Not Found` while `curl` against the very same path returned 200. A function
- * source also costs no subrequest, which matters under the Workers Free CPU budget (ADR-0008).
- */
-export async function verifyAccessTokenWithLocalJwks(
-  db: Database,
-  token: string,
-  options: { issuer: string; audience: string },
-): Promise<Record<string, unknown>> {
-  return (await resourceClient.getActions().verifyAccessToken(token, {
-    jwksUrl: (async () => loadJwks(db)) as unknown as string,
-    verifyOptions: { issuer: options.issuer, audience: options.audience },
-    scopes: ["pmk:access"],
-  })) as Record<string, unknown>;
-}
 
 export function extractBearerToken(header: string | undefined): string {
   if (header === undefined || !/^Bearer\s+\S+$/i.test(header))
@@ -52,9 +29,7 @@ accessRoutes.get("/access", accessRateLimit, async (c) => {
 
   // Better Auth signs JWTs with the JWT plugin issuer under /api/auth.
   // The protected resource audience remains the API origin.
-  const authBaseUrl = c.env.BETTER_AUTH_URL.replace(/\/$/, "");
-  const issuer = `${authBaseUrl}/api/auth`;
-  const audience = authBaseUrl;
+  const { issuer, audience } = accessTokenAudience(c.env);
 
   return withDb(c.env.HYPERDRIVE, async (db) => {
     let claims: Record<string, unknown>;

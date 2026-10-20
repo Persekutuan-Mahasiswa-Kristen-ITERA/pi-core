@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { generateKeyPairSync, sign, type KeyObject } from "node:crypto";
 
 import { app } from "../app";
-import { extractBearerToken, verifyAccessTokenWithLocalJwks } from "./access";
+import { extractBearerToken } from "./access";
+import { verifyAccessTokenWithLocalJwks } from "../oauth/verify-access-token";
 
 const env = {
   BETTER_AUTH_URL: "https://issuer.example.test",
