@@ -63,6 +63,40 @@ export function fetchMembers(limit = 100): Promise<MembersPage> {
   return getJson<MembersPage>(`/api/v1/members?limit=${String(limit)}`);
 }
 
+/** The caller's own record — `/api/v1/me` works with the opaque mobile token, unlike `/access`. */
+export interface OwnProfile {
+  member: {
+    id: string;
+    email: string;
+    fullName: string;
+    status: "active" | "inactive";
+    nim?: string | null;
+    phone?: string | null;
+    faculty?: string | null;
+    studyProgram?: string | null;
+    cohortYear?: number | null;
+  };
+  roles: string[];
+}
+
+export function fetchMe(): Promise<OwnProfile> {
+  return getJson<OwnProfile>("/api/v1/me");
+}
+
+/**
+ * A member may change only their own phone and photo (FR-11); the API enforces that per field, so a
+ * refusal here is the real rule answering, not a client-side check.
+ */
+export async function updateOwnPhone(memberId: string, phone: string): Promise<void> {
+  const headers = await authHeaders();
+  const response = await fetch(`${API_URL}/api/v1/members/${encodeURIComponent(memberId)}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", ...headers },
+    body: JSON.stringify({ phone: phone === "" ? null : phone }),
+  });
+  if (!response.ok) throw new ApiError(response.status);
+}
+
 export function fetchRoles(): Promise<{ items: RoleSummary[] }> {
   return getJson<{ items: RoleSummary[] }>("/api/v1/roles");
 }
@@ -80,6 +114,44 @@ export interface OrgUnitSummary {
 
 export function fetchOrgUnits(): Promise<{ items: OrgUnitSummary[] }> {
   return getJson<{ items: OrgUnitSummary[] }>("/api/v1/org-units");
+}
+
+/** Mirrors `AssignmentView` in `packages/db/src/assignments.ts`. */
+export interface AssignmentSummary {
+  id: string;
+  memberId: string;
+  memberName: string | null;
+  orgUnitName: string | null;
+  positionName: string | null;
+  positionRank: number | null;
+  periodLabel: string | null;
+  startsOn: string | null;
+  endsOn: string | null;
+}
+
+export function fetchAssignments(limit = 200): Promise<{ items: AssignmentSummary[] }> {
+  return getJson<{ items: AssignmentSummary[] }>(`/api/v1/assignments?limit=${String(limit)}`);
+}
+
+/** Organization profile — `orgName` is the only stored field the prototype also showed. */
+export interface OrgSettings {
+  orgName: string;
+  logoKey: string | null;
+}
+
+export interface AllowedDomain {
+  id: string;
+  domain: string;
+  allowSubdomains: boolean;
+  isActive: boolean;
+}
+
+export function fetchOrgSettings(): Promise<{ settings: OrgSettings | null }> {
+  return getJson<{ settings: OrgSettings | null }>("/api/v1/settings/org");
+}
+
+export function fetchAllowedDomains(): Promise<{ items: AllowedDomain[] }> {
+  return getJson<{ items: AllowedDomain[] }>("/api/v1/settings/domains");
 }
 
 /**
@@ -119,5 +191,40 @@ export async function fetchDashboardSummary(): Promise<DashboardSummary> {
     permissionCount: rolePage.items.reduce((total, role) => total + role.permissions.length, 0),
     activePeriodLabel: periodPage.items.find((period) => period.isActive)?.label ?? null,
     unitsByType,
+  };
+}
+
+/**
+ * Assignments grouped by the **type** of the unit they sit in, for the structure report.
+ *
+ * The list payload carries `orgUnitId` but not the unit's type, so the types come from `/org-units`
+ * and are joined here. `isFloor` marks the case where the assignment page was full: the counts are
+ * then "at least", never presented as exact.
+ */
+export interface AssignmentStats {
+  total: number;
+  byUnitType: Record<string, number>;
+  isFloor: boolean;
+}
+
+export async function fetchAssignmentStats(): Promise<AssignmentStats> {
+  const [assignmentPage, unitPage] = await Promise.all([
+    getJson<{ items: Array<{ orgUnitId: string }>; nextCursor: string | null }>(
+      "/api/v1/assignments?limit=200",
+    ),
+    fetchOrgUnits(),
+  ]);
+
+  const typeOf = new Map(unitPage.items.map((unit) => [unit.id, unit.type]));
+  const byUnitType: Record<string, number> = {};
+  for (const assignment of assignmentPage.items) {
+    const type = typeOf.get(assignment.orgUnitId) ?? "unknown";
+    byUnitType[type] = (byUnitType[type] ?? 0) + 1;
+  }
+
+  return {
+    total: assignmentPage.items.length,
+    byUnitType,
+    isFloor: assignmentPage.nextCursor !== null,
   };
 }

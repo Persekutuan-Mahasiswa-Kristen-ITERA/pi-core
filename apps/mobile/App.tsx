@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type JSX } from "react";
 import {
   Modal,
   Pressable,
@@ -11,6 +11,9 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { ROLES } from "@pi-core/shared";
+
+import { ScreenState } from "./src/components/ScreenState";
 
 import { loadSession, MobileSignInError, saveSession, signInWithGoogle, signOut, type SignedInSession } from "./src/auth/session";
 import { AppIcon, type IconName } from "./src/components/AppIcon";
@@ -18,8 +21,20 @@ import { AuthScreen } from "./src/auth/AuthScreen";
 import { DirectoryScreen } from "./src/screens/DirectoryScreen";
 import { IntegrationsScreen } from "./src/screens/IntegrationsScreen";
 import {
+  AssignmentsScreen,
+  PeriodsScreen,
+  RolesScreen,
+  SettingsScreen,
+} from "./src/screens/ManagementScreens";
+import {
+  ApiError,
+  fetchAssignmentStats,
   fetchDashboardSummary,
+  fetchMe,
+  updateOwnPhone,
+  type AssignmentStats,
   type DashboardSummary,
+  type OwnProfile,
 } from "./src/api/resources";
 
 import { tokens, type AppTab, tabLabels } from "./src/theme/tokens";
@@ -349,11 +364,15 @@ function Dashboard({ onOpenDirectory }: { onOpenDirectory: () => void }) {
 
 function ReportsScreen() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [assignments, setAssignments] = useState<AssignmentStats | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    void fetchDashboardSummary()
-      .then(setSummary)
+    void Promise.all([fetchDashboardSummary(), fetchAssignmentStats()])
+      .then(([dashboard, stats]) => {
+        setSummary(dashboard);
+        setAssignments(stats);
+      })
       .catch(() => setFailed(true));
   }, []);
 
@@ -363,38 +382,48 @@ function ReportsScreen() {
     return `${String(units[type] ?? 0)} unit`;
   };
 
+  // "3 unit · 12 penugasan", with a "+" when the assignment page was full.
+  const detailOf = (type: string): string => {
+    if (summary === null || assignments === null) {
+      return failed ? "Tidak dapat dimuat" : "Memuat…";
+    }
+    const count = assignments.byUnitType[type] ?? 0;
+    return `${String(count)}${assignments.isFloor ? "+" : ""} penugasan`;
+  };
+
   return (
     <View style={{ gap: 14 }}>
       <Text style={styles.sectionTitle}>Laporan Struktur Organisasi</Text>
       <Text style={{ color: tokens.colors.muted, fontSize: 13, lineHeight: 18 }}>
-        Struktur resmi organisasi PMK ITERA berdasarkan ADR-0002, dihitung dari unit yang terdaftar.
+        Struktur resmi organisasi PMK ITERA berdasarkan ADR-0002, dihitung dari unit dan penugasan yang
+        terdaftar.
       </Text>
       <View style={styles.statCard}>
         <Text style={styles.statLabel}>BADAN PENGURUS HARIAN (BPH)</Text>
         <Text style={styles.statValue}>{countOf("bph")}</Text>
         <Text style={{ color: tokens.colors.body, fontSize: 12.5, marginTop: 4 }}>
-          Ketua Umum, Wakil Ketua, Sekretaris Umum, Bendahara Umum.
+          {detailOf("bph")} — Ketua Umum, Wakil Ketua, Sekretaris Umum, Bendahara Umum.
         </Text>
       </View>
       <View style={styles.statCard}>
-        <Text style={styles.statLabel}>DEPARTEMEN &amp; BIRO</Text>
+        <Text style={styles.statLabel}>DEPARTEMEN</Text>
         <Text style={styles.statValue}>{countOf("department")}</Text>
         <Text style={{ color: tokens.colors.body, fontSize: 12.5, marginTop: 4 }}>
-          Unit pelaksana di bawah BPH.
+          {detailOf("department")} — unit pelaksana di bawah BPH.
         </Text>
       </View>
       <View style={styles.statCard}>
         <Text style={styles.statLabel}>BIRO</Text>
         <Text style={styles.statValue}>{countOf("bureau")}</Text>
         <Text style={{ color: tokens.colors.body, fontSize: 12.5, marginTop: 4 }}>
-          Unit setingkat departemen dengan fungsi pendukung.
+          {detailOf("bureau")} — unit setingkat departemen dengan fungsi pendukung.
         </Text>
       </View>
       <View style={styles.statCard}>
         <Text style={styles.statLabel}>DIVISI OPERASIONAL</Text>
         <Text style={styles.statValue}>{countOf("division")}</Text>
         <Text style={{ color: tokens.colors.body, fontSize: 12.5, marginTop: 4 }}>
-          Divisi di bawah departemen atau biro.
+          {detailOf("division")} — divisi di bawah departemen atau biro.
         </Text>
       </View>
     </View>
@@ -402,55 +431,125 @@ function ReportsScreen() {
 }
 
 function ProfileScreen({ onSignOut }: { onSignOut: () => void }) {
+  const [profile, setProfile] = useState<OwnProfile | null>(null);
+  const [state, setState] = useState<"loading" | "ready" | "offline" | "unauthorized" | "error">("loading");
+
   const [editing, setEditing] = useState(false);
-  const [phone, setPhone] = useState("+62 812-3456-7890");
-  const [saved, setSaved] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [writeError, setWriteError] = useState<string | null>(null);
+
+  const load = useCallback(async (): Promise<void> => {
+    try {
+      const me = await fetchMe();
+      setProfile(me);
+      setPhone(me.member.phone ?? "");
+      setState("ready");
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        setState("unauthorized");
+        return;
+      }
+      setState(error instanceof ApiError ? "error" : "offline");
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function savePhone(): Promise<void> {
+    if (profile === null) return;
+    setBusy(true);
+    setWriteError(null);
+    try {
+      await updateOwnPhone(profile.member.id, phone.trim());
+      setNotice("Nomor WhatsApp disimpan.");
+      setEditing(false);
+      await load();
+    } catch (error) {
+      // The API decides what a member may change; a refusal is shown, never swallowed.
+      setWriteError(error instanceof ApiError && error.status === 403 ? "Server menolak perubahan ini." : "Gagal menyimpan. Coba lagi.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const member = profile?.member ?? null;
+  const initials =
+    member === null
+      ? "…"
+      : member.fullName
+          .split(" ")
+          .slice(0, 2)
+          .map((part) => part.slice(0, 1).toUpperCase())
+          .join("");
+
+  const field = (label: string, value: string | null): JSX.Element => (
+    <View style={styles.profileRow}>
+      <Text style={styles.profileField}>{label}</Text>
+      <Text style={styles.profileValue}>{value === null || value === "" ? "Belum diisi" : value}</Text>
+    </View>
+  );
 
   return (
     <View style={{ gap: 14 }}>
-      <View style={{ alignItems: "center", paddingVertical: 18 }}>
-        <View style={styles.profileAvatar}>
-          <Text style={styles.profileAvatarText}>FY</Text>
-        </View>
-        <Text style={{ fontSize: 20, fontWeight: "800", color: tokens.colors.heading, marginTop: 10 }}>
-          Febryan Yoel
-        </Text>
-        <View style={styles.roleBadgeContainer}>
-          <Ionicons name="shield-checkmark" size={13} color="#2563eb" />
-          <Text style={styles.roleBadgeText}>Super Admin (BPH)</Text>
-        </View>
-      </View>
+      {state !== "ready" ? (
+        <ScreenState kind={state} onRetry={() => void load()} />
+      ) : (
+        <>
+          <View style={{ alignItems: "center", paddingVertical: 18 }}>
+            <View style={styles.profileAvatar}>
+              <Text style={styles.profileAvatarText}>{initials}</Text>
+            </View>
+            <Text style={{ fontSize: 20, fontWeight: "800", color: tokens.colors.heading, marginTop: 10 }}>
+              {member?.fullName ?? "—"}
+            </Text>
+            <Text style={{ fontSize: 12.5, color: tokens.colors.muted, marginTop: 2 }}>
+              {member?.email ?? ""}
+            </Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8, justifyContent: "center" }}>
+              {(profile?.roles ?? []).map((role) => (
+                <View key={role} style={styles.roleBadgeContainer}>
+                  <Ionicons name="shield-checkmark" size={13} color="#2563eb" />
+                  <Text style={styles.roleBadgeText}>{roleLabel(role)}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
 
-      <View style={styles.statCard}>
-        <Text style={styles.statLabel}>IDENTITAS AKADEMIK & KONTAK</Text>
-        <View style={{ gap: 10, marginTop: 10 }}>
-          <View style={styles.profileRow}>
-            <Text style={styles.profileField}>NIM ITERA</Text>
-            <Text style={styles.profileValue}>121140001</Text>
-          </View>
-          <View style={styles.profileRow}>
-            <Text style={styles.profileField}>Program Studi</Text>
-            <Text style={styles.profileValue}>Teknik Informatika (FTI)</Text>
-          </View>
-          <View style={styles.profileRow}>
-            <Text style={styles.profileField}>Tahun Angkatan</Text>
-            <Text style={styles.profileValue}>2021</Text>
-          </View>
-          <View style={styles.profileRow}>
-            <Text style={styles.profileField}>Email ITERA</Text>
-            <Text style={styles.profileValue}>febryan.admin@itera.ac.id</Text>
-          </View>
-          <View style={styles.profileRow}>
-            <Text style={styles.profileField}>Nomor WhatsApp</Text>
-            <Text style={styles.profileValue}>{phone}</Text>
-          </View>
-        </View>
-      </View>
+          {notice !== null ? (
+            <Text style={{ color: tokens.colors.success, fontSize: 12.5, textAlign: "center" }}>{notice}</Text>
+          ) : null}
 
-      <Pressable accessibilityRole="button" style={styles.editContactButton} onPress={() => setEditing(true)}>
-        <Ionicons name="create-outline" size={17} color={tokens.colors.brown} />
-        <Text style={styles.editContactText}>Perbarui Kontak WhatsApp</Text>
-      </Pressable>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>IDENTITAS AKADEMIK &amp; KONTAK</Text>
+            <View style={{ gap: 10, marginTop: 10 }}>
+              {field("NIM ITERA", member?.nim ?? null)}
+              {field("Program Studi", member?.studyProgram ?? null)}
+              {field("Fakultas", member?.faculty ?? null)}
+              {field("Tahun Angkatan", member?.cohortYear === null || member?.cohortYear === undefined ? null : String(member.cohortYear))}
+              {field("Email ITERA", member?.email ?? null)}
+              {field("Nomor WhatsApp", member?.phone ?? null)}
+              {field("Status Keanggotaan", member?.status === "active" ? "Aktif" : member?.status === "inactive" ? "Nonaktif" : null)}
+            </View>
+          </View>
+
+          <Pressable
+            accessibilityRole="button"
+            style={styles.editContactButton}
+            onPress={() => {
+              setWriteError(null);
+              setNotice(null);
+              setEditing(true);
+            }}
+          >
+            <Ionicons name="create-outline" size={17} color={tokens.colors.brown} />
+            <Text style={styles.editContactText}>Perbarui Kontak WhatsApp</Text>
+          </Pressable>
+        </>
+      )}
 
       <Pressable accessibilityRole="button" style={styles.signOutButton} onPress={onSignOut}>
         <Ionicons name="log-out-outline" size={17} color={tokens.colors.white} />
@@ -469,22 +568,22 @@ function ProfileScreen({ onSignOut }: { onSignOut: () => void }) {
                 placeholder="+62 8..."
                 keyboardType="phone-pad"
               />
-              {saved && <Text style={{ color: tokens.colors.success, fontSize: 12 }}>✓ Berhasil disimpan!</Text>}
+              <Text style={{ fontSize: 11.5, color: tokens.colors.muted }}>
+                Anda hanya dapat mengubah nomor sendiri. Nama, email dan NIM diubah admin.
+              </Text>
+              {writeError !== null && <Text style={{ color: tokens.colors.danger, fontSize: 12 }}>{writeError}</Text>}
               <View style={{ flexDirection: "row", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
                 <Pressable style={{ padding: 10 }} onPress={() => setEditing(false)}>
                   <Text style={{ color: tokens.colors.muted }}>Batal</Text>
                 </Pressable>
                 <Pressable
                   style={{ backgroundColor: tokens.colors.brown, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 }}
-                  onPress={() => {
-                    setSaved(true);
-                    setTimeout(() => {
-                      setSaved(false);
-                      setEditing(false);
-                    }, 600);
-                  }}
+                  onPress={() => void savePhone()}
+                  disabled={busy}
                 >
-                  <Text style={{ color: tokens.colors.white, fontWeight: "700" }}>Simpan</Text>
+                  <Text style={{ color: tokens.colors.white, fontWeight: "700" }}>
+                    {busy ? "Menyimpan…" : "Simpan"}
+                  </Text>
                 </Pressable>
               </View>
             </View>
@@ -495,109 +594,10 @@ function ProfileScreen({ onSignOut }: { onSignOut: () => void }) {
   );
 }
 
-function RolesScreen() {
-  const roles = [
-    { name: "Super Admin", scope: "O (Full Scope)", grants: "22 Izin" },
-    { name: "Organization Admin", scope: "O (Organisasi)", grants: "17 Izin" },
-    { name: "BPH", scope: "O (Organisasi)", grants: "7 Izin" },
-    { name: "Kepala Departemen", scope: "U (Subtree)", grants: "7 Izin" },
-    { name: "Sekretaris Departemen", scope: "U (Subtree)", grants: "9 Izin" },
-    { name: "Kepala Divisi", scope: "U (Divisi)", grants: "6 Izin" },
-    { name: "Staff Divisi", scope: "U (Divisi)", grants: "5 Izin" },
-    { name: "Bendahara", scope: "U (Biro Kas)", grants: "4 Izin" },
-    { name: "Panitia", scope: "U (Event)", grants: "4 Izin" },
-    { name: "Anggota Biasa", scope: "S (Mandiri)", grants: "4 Izin" },
-  ];
-  return (
-    <View style={{ gap: 12 }}>
-      <Text style={styles.sectionTitle}>10 Peran Resmi PMK ITERA</Text>
-      {roles.map((r) => (
-        <View key={r.name} style={styles.statCard}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-            <Text style={{ fontSize: 15, fontWeight: "700", color: tokens.colors.heading }}>{r.name}</Text>
-            <View style={{ backgroundColor: "rgba(124, 58, 237, 0.1)", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 }}>
-              <Text style={{ fontSize: 11, fontWeight: "700", color: "#7c3aed" }}>{r.grants}</Text>
-            </View>
-          </View>
-          <Text style={{ fontSize: 12, color: tokens.colors.muted, marginTop: 6 }}>Lingkup Otorisasi: {r.scope}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
-function PeriodsScreen() {
-  return (
-    <View style={{ gap: 12 }}>
-      <Text style={styles.sectionTitle}>Periode Kepengurusan</Text>
-      <View style={[styles.statCard, { borderColor: tokens.colors.gold, borderWidth: 1.5 }]}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: tokens.colors.success }} />
-          <Text style={{ fontSize: 11, fontWeight: "700", color: tokens.colors.success }}>PERIODE AKTIF</Text>
-        </View>
-        <Text style={{ fontSize: 20, fontWeight: "800", color: tokens.colors.heading, marginTop: 4 }}>2026/2027</Text>
-        <Text style={{ fontSize: 12, color: tokens.colors.muted, marginTop: 2 }}>01 Agu 2026 s/d 31 Jul 2027</Text>
-      </View>
-      <View style={styles.statCard}>
-        <Text style={{ fontSize: 11, fontWeight: "700", color: tokens.colors.muted }}>ARSIP MASA BAKTI</Text>
-        <Text style={{ fontSize: 16, fontWeight: "700", color: tokens.colors.heading, marginTop: 4 }}>2025/2026</Text>
-        <Text style={{ fontSize: 12, color: tokens.colors.muted, marginTop: 2 }}>01 Agu 2025 s/d 31 Jul 2026 (Selesai)</Text>
-      </View>
-    </View>
-  );
-}
-
-function AssignmentsScreen() {
-  return (
-    <View style={{ gap: 12 }}>
-      <Text style={styles.sectionTitle}>Penugasan Pengurus</Text>
-      <View style={styles.statCard}>
-        <Text style={{ fontSize: 14.5, fontWeight: "700", color: tokens.colors.heading }}>Jonathan Sitorus</Text>
-        <Text style={{ fontSize: 12.5, color: tokens.colors.accent, fontWeight: "600", marginTop: 2 }}>
-          BPH · Ketua Umum (Rank 10)
-        </Text>
-        <Text style={{ fontSize: 11.5, color: tokens.colors.muted, marginTop: 4 }}>Periode 2026/2027 · Aktif</Text>
-      </View>
-      <View style={styles.statCard}>
-        <Text style={{ fontSize: 14.5, fontWeight: "700", color: tokens.colors.heading }}>Daniel Hutapea</Text>
-        <Text style={{ fontSize: 12.5, color: tokens.colors.accent, fontWeight: "600", marginTop: 2 }}>
-          Divisi Ibadah · Kepala Divisi (Rank 60)
-        </Text>
-        <Text style={{ fontSize: 11.5, color: tokens.colors.muted, marginTop: 4 }}>Periode 2026/2027 · Aktif</Text>
-      </View>
-      <View style={styles.statCard}>
-        <Text style={{ fontSize: 14.5, fontWeight: "700", color: tokens.colors.heading }}>Grace Lumbantoruan</Text>
-        <Text style={{ fontSize: 12.5, color: tokens.colors.accent, fontWeight: "600", marginTop: 2 }}>
-          Divisi Media & Kreatif · Staff (Rank 70)
-        </Text>
-        <Text style={{ fontSize: 11.5, color: tokens.colors.muted, marginTop: 4 }}>Periode 2026/2027 · Aktif</Text>
-      </View>
-    </View>
-  );
-}
-
-function SettingsScreen() {
-  return (
-    <View style={{ gap: 12 }}>
-      <Text style={styles.sectionTitle}>Pengaturan Organisasi</Text>
-      <View style={styles.statCard}>
-        <Text style={styles.statLabel}>PROFIL ORGANISASI</Text>
-        <Text style={{ fontSize: 16, fontWeight: "800", color: tokens.colors.heading, marginTop: 4 }}>PMK ITERA</Text>
-        <Text style={{ fontSize: 12.5, color: tokens.colors.muted, marginTop: 2 }}>
-          Persekutuan Mahasiswa Kristen Institut Teknologi Sumatera
-        </Text>
-      </View>
-      <View style={styles.statCard}>
-        <Text style={styles.statLabel}>DOMAIN EMAIL DIIZINKAN (WHITELIST)</Text>
-        <Text style={{ fontSize: 13.5, fontWeight: "700", color: tokens.colors.accent, marginTop: 4 }}>
-          @itera.ac.id, @student.itera.ac.id
-        </Text>
-        <Text style={{ fontSize: 11.5, color: tokens.colors.muted, marginTop: 4 }}>
-          Hanya akun berdomain resmi yang diizinkan login ke ekosistem PI-CORE.
-        </Text>
-      </View>
-    </View>
-  );
+/** Role keys are snake_case (`super_admin`); the matrix already carries a display name. */
+function roleLabel(key: string): string {
+  const definition = ROLES.find((role) => role.key === key);
+  return definition?.name ?? key;
 }
 
 function StatCard({ label, value, delta, icon }: { label: string; value: string; delta: string; icon: keyof typeof Ionicons.glyphMap }) {

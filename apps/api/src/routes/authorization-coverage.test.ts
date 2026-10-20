@@ -43,6 +43,9 @@ const NON_ROUTE_CALLS: readonly string[] = [
   "routes/mobile-auth.ts GET db",
   "routes/mobile-auth.ts GET actor",
   "routes/mobile-auth.ts GET requestId",
+  // `/me` reads the actor and the request's connection, not a route registration.
+  "routes/me.ts GET actor",
+  "routes/me.ts GET db",
   "app.ts GET requestId",
   "http/errors.ts GET requestId",
   "routes/members.ts GET db",

@@ -133,6 +133,15 @@ export const ROUTE_AUTHORIZATION: readonly RouteAuthorization[] = [
       "List members. Guarded by member:read, and the actor's scope is applied inside the SQL (FR-26) rather than by filtering the result, so no code path can return a row the scope excluded. Sensitive columns (NIM, phone) are only selected when the actor holds member:read_sensitive (FR-9); the response says whether they were included instead of leaving the client to guess.",
   },
   {
+    file: "routes/me.ts",
+    method: "GET",
+    path: "/",
+    mountedAt: "/api/v1/me",
+    permission: "profile:read_own",
+    reason:
+      "Returns the caller's own member record and role keys, read from the actor sessionMiddleware already resolved. The permission is aimed at target `self` and every role holds it via UNIVERSAL_GRANTS, so it cannot be pointed at another member — that is what /api/v1/members/:id is for, and it needs member:read plus scope.",
+  },
+  {
     file: "routes/members.ts",
     method: "GET",
     path: "/:id",

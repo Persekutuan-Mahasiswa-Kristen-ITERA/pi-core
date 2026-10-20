@@ -16,6 +16,7 @@ import { avatarRoutes } from "./routes/avatar";
 import { healthRoutes } from "./routes/health";
 import { integrationRoutes } from "./routes/integrations";
 import { memberRoutes } from "./routes/members";
+import { meRoutes } from "./routes/me";
 import { mobileAuthRoutes } from "./routes/mobile-auth";
 import { oidcRoutes } from "./routes/oidc";
 import { orgUnitRoutes } from "./routes/org-units";
@@ -106,6 +107,9 @@ app.route("/api/v1/auth/mobile", mobileAuthRoutes);
 // Authorization snapshot for registered consumer apps (story 6.3). The resource client verifies
 // issuer/audience/signature/expiry/scope; the DB resolver recomputes current authorization.
 app.route("/api/v1", accessRoutes);
+
+// The caller's own record (mobile holds an opaque session token, which /access will not verify).
+app.route("/api/v1/me", meRoutes);
 
 // Member reads (story 4.2). Scope is enforced inside the SQL, not here — see packages/db/src/members.ts.
 app.route("/api/v1/members", memberRoutes);
