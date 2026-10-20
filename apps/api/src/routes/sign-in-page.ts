@@ -82,7 +82,27 @@ signInPageRoutes.get("/", (c) => {
   const redirectUri = c.req.query("redirect_uri") ?? "";
   const codeChallenge = c.req.query("code_challenge") ?? "";
   const state = c.req.query("state") ?? "";
-  const isMobile = redirectUri !== "" && codeChallenge !== "";
+
+  /**
+   * The OAuth **authorize** request carries `redirect_uri` + `code_challenge` too — the very pair that
+   * used to mean "mobile hand-off". Classifying on presence alone sent the admin web's sign-in into
+   * `/api/v1/auth/mobile/finish`, which refuses an `https:` URI that is not on the deep-link allowlist,
+   * so the flow died right after Google consent. Classify on the **scheme**: a deep link (`picore://`,
+   * `exp://`) is not an https callback.
+   */
+  const isDeepLink =
+    /^[a-z][a-z0-9+.-]*:\/\//i.test(redirectUri) &&
+    !/^https?:\/\//i.test(redirectUri);
+  const isMobile = isDeepLink && codeChallenge !== "";
+
+  /**
+   * An authorization request must resume at the authorize endpoint once a session exists, otherwise
+   * Google consent returns to `/sign-in` with the OAuth parameters gone and no code is ever issued.
+   * The query is forwarded verbatim — it is exactly what the provider redirected here with.
+   */
+  const isOAuthRequest =
+    c.req.query("client_id") !== undefined &&
+    c.req.query("response_type") !== undefined;
 
   const callbackUrl = isMobile
     ? `/api/v1/auth/mobile/finish?${new URLSearchParams({
@@ -90,10 +110,12 @@ signInPageRoutes.get("/", (c) => {
         code_challenge: codeChallenge,
         ...(state !== "" ? { state } : {}),
       }).toString()}`
-    : "/sign-in";
+    : isOAuthRequest
+      ? `/api/auth/oauth2/authorize?${new URL(c.req.url).searchParams.toString()}`
+      : "/sign-in";
 
   if (actor !== undefined && email !== undefined) {
-    if (isMobile) {
+    if (isMobile || isOAuthRequest) {
       return c.redirect(callbackUrl);
     }
     const roles =
