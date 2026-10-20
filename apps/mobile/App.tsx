@@ -20,6 +20,15 @@ import { IntegrationsScreen } from "./src/screens/IntegrationsScreen";
 
 import { tokens, type AppTab, tabLabels } from "./src/theme/tokens";
 
+/**
+ * Demo sign-in writes a fake local session ("demo_super_admin_session_token") and shows the signed-in
+ * shell. It exists so the UI can be reviewed on a device without a Google round-trip, so it is
+ * enabled **only** in development or when a build opts in explicitly — a release build must never be
+ * able to present itself as a signed-in super admin while every API call is in fact unauthenticated.
+ */
+const DEMO_MODE_ENABLED =
+  __DEV__ || process.env.EXPO_PUBLIC_DEMO_MODE === "true";
+
 type AuthState =
   | { kind: "checking" }
   | { kind: "signed-out" }
@@ -61,6 +70,9 @@ export default function App() {
   }, []);
 
   const onDemoSignIn = useCallback(async () => {
+    // The demo session is a fake local token: it must never exist in a release build, where it would
+    // look like a signed-in super admin while every API call fails. Opt in explicitly instead.
+    if (!DEMO_MODE_ENABLED) return;
     setAuth({ kind: "working" });
     const demoSession: SignedInSession = {
       token: "demo_super_admin_session_token",
@@ -82,7 +94,7 @@ export default function App() {
         errorMessage={auth.kind === "error" ? auth.message : undefined}
         loading={auth.kind === "checking" || auth.kind === "working"}
         onGooglePress={() => void onSignIn()}
-        onDemoPress={() => void onDemoSignIn()}
+        {...(DEMO_MODE_ENABLED ? { onDemoPress: () => void onDemoSignIn() } : {})}
       />
     );
   }
