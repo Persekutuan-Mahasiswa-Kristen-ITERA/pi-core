@@ -56,12 +56,14 @@ const tokenResponse = await fetch(discovery.token_endpoint, {
     code,
     redirect_uri: redirectUri,
     code_verifier: codeVerifier,
-    resource: discovery.issuer, // RFC 8707: Requests a JWT access token bound to PI-CORE resource audience
+    resource: apiOrigin, // RFC 8707: the token's `aud` is this value verbatim — use the API origin, not the issuer
   }),
 });
 ```
 
 The example intentionally omits credential values and must run only on the consumer server.
+
+`resource` must be the **API origin** (`https://pi-core-api-staging.pmkitera.workers.dev`), not the issuer. The provider copies the value straight into the token's `aud`, and `/api/v1/*` verifies `aud` against its own origin, so a token requested against the issuer is refused with 401 even though it is otherwise valid. The same value must be sent on both the authorize and the token request.
 
 ## Authorization snapshot
 
