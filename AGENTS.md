@@ -62,7 +62,7 @@ Verified on 2026-10-15 (Node 26 / pnpm 10.20.0). Run from the repo root.
 | Install                | `pnpm install`                                                             | Frozen in CI: `pnpm install --frozen-lockfile`   |
 | Typecheck              | `pnpm -r typecheck` (or `pnpm typecheck` via Turbo)                        |                                                  |
 | Lint                   | `pnpm -r lint`                                                             | Shared ESLint flat config from `@pi-core/config` |
-| Test                   | `pnpm -r test`                                                             | shared 96 (vitest), api 90 (vitest), web 43 (vitest/jsdom), mobile 31 (jest-expo) |
+| Test                   | `pnpm -r test`                                                             | shared 96 (vitest), api 96 (vitest), web 52 (vitest/jsdom), mobile 31 (jest-expo) |
 | Production preflight   | `pnpm check:production`                                                    | reads config + secret **names**; exits 1 while anything is unconfigured/staging-shaped |
 | Test (mobile only)     | `pnpm --filter @pi-core/mobile test`                                        | jest-expo; renders screens headlessly, no device or Metro |
 | Export mobile bundle   | `pnpm --filter @pi-core/mobile exec expo export --platform android`         | Proves the app graph builds; needs no device |
