@@ -234,3 +234,74 @@ In the event of an operational incident:
    - **P2 (Non-blocking bug):** Log issue, investigate via correlation `requestId`.
 2. **Trace correlation:** Check inbound `x-request-id` header in Cloudflare Workers Logs and match with `audit_logs.request_id`.
 3. **Escalate:** Reach the project administrator (`biroitpmkitera@gmail.com`).
+
+---
+
+## 8. Mobile Release (Android) — verified 2026-10-21
+
+The app is an Expo project with Continuous Native Generation: `android/` and `ios/` are **not** in git
+(`.gitignore`), and the native project is produced on demand. Everything below was run on this machine
+(JDK 21, Android SDK at `~/Android/Sdk`, SDK 36) and produced a working APK.
+
+### 8.1 Build a test APK (debug-signed, installable, NOT for Play Store)
+```bash
+cd apps/mobile
+npx expo prebuild --platform android --no-install
+cd android
+export ANDROID_HOME="$HOME/Android/Sdk"
+./gradlew assembleRelease          # ~3 min warm; JS bundle embedded (Hermes)
+# → app/build/outputs/apk/release/app-release.apk
+```
+`prebuild` rewrites the `android`/`ios` scripts in `package.json` to `expo run:*`. Revert that (or do not
+commit it): `android/` is generated, so `expo start --android` stays the correct dev command.
+
+The template signs `release` with the **debug** keystore (`android/app/build.gradle`, with an explicit
+caution comment). That is fine for installing on a phone or emulator and wrong for distribution: Play
+refuses a debug certificate.
+
+### 8.2 Build a Play Store bundle (AAB)
+```bash
+cd apps/mobile/android && ./gradlew bundleRelease
+# → app/build/outputs/bundle/release/app-release.aab
+```
+The same debug-keystore caveat applies until §8.3 is done.
+
+### 8.3 Release keystore — an owner secret, never in the repo
+Generate once, keep the file and both passwords outside git (password manager + offline copy). Losing it
+means never being able to update the app under the same listing.
+```bash
+keytool -genkeypair -v -keystore pmk-core-release.keystore -alias pmk-core \
+        -keyalg RSA -keysize 4096 -validity 10000
+```
+Wire it in through a gitignored `android/keystore.properties` (and a matching `signingConfigs.release`
+block in `android/app/build.gradle`, which is generated, so the block must also live in a config plugin if
+it is to survive `prebuild`):
+```properties
+storeFile=/absolute/path/outside/repo/pmk-core-release.keystore
+storePassword=…
+keyAlias=pmk-core
+keyPassword=…
+```
+Alternative: let EAS hold the credentials — `eas credentials` / `eas build --profile production`
+(`apps/mobile/eas.json` already defines `preview` as an APK and `production` as an app-bundle).
+
+### 8.4 Version bump before every upload
+- `apps/mobile/app.json` → `expo.version` (user-visible, e.g. `1.0.0`).
+- `android/app/build.gradle` → `versionCode` must increase monotonically (1, 2, 3…); Play rejects a
+  duplicate. With EAS, `autoIncrement` handles it.
+
+### 8.5 Publish
+Play Console (one-time USD 25) → create the app → upload the AAB → internal testing track first → data
+safety form + privacy policy URL + screenshots → review. `eas submit -p android` automates the upload.
+
+### 8.6 iOS
+Not possible from this machine: iOS builds need macOS + Xcode or EAS cloud, and distribution needs a paid
+Apple Developer account (USD 99/yr), which ADR-0004 explicitly rules out. iOS is a development/simulator
+target only. The only free path is an EAS **simulator** build (`eas build -p ios --profile preview` with
+`ios.simulator: true`), which still needs a Mac to run.
+
+### 8.7 What has and has not been proven
+Verified 2026-10-21: release APK builds (68 MB, `id.web.pmkitera.core`, versionCode 1, targetSdk 36, JS
+bundle embedded, V2-signed with the debug key), installs on a Pixel_8a emulator, launches, renders the
+sign-in screen, opens the API's `/sign-in` page in a Chrome Custom Tab, and `picore://auth` resolves back
+into `MainActivity`. **Not** verified: a completed Google sign-in on a device, and anything on iOS.
