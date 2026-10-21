@@ -256,9 +256,11 @@ export default function AnggotaPage(): JSX.Element {
             </div>
 
             <span style={{ fontSize: 12.5, color: "var(--color-muted)", marginLeft: "auto", fontWeight: 500 }}>
-              {loading
-                ? "Memuat…"
-                : `Menampilkan ${String(filtered.length)} dari ${String(members.length)} anggota terambil${nextCursor !== null ? " (masih ada lagi)" : ""}`}
+              {!authenticated
+                ? "Masuk untuk melihat anggota."
+                : loading
+                  ? "Memuat…"
+                  : `Menampilkan ${String(filtered.length)} dari ${String(members.length)} anggota terambil${nextCursor !== null ? " (masih ada lagi)" : ""}`}
             </span>
           </div>
 

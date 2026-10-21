@@ -84,9 +84,11 @@ export default function PeranPage(): JSX.Element {
               <p className="eyebrow">Role-Based Access Control (RBAC)</p>
               <h1>Katalog Peran &amp; Izin Otorisasi</h1>
               <p className="subtitle">
-                {loading
-                  ? "Memuat katalog peran…"
-                  : `${String(roles.length)} peran (${String(systemCount)} sistem) dengan ${String(permissionKeys.size)} izin berbeda, langsung dari tabel roles dan role_permissions.`}
+                {!authenticated
+                  ? "Masuk untuk melihat katalog peran."
+                  : loading
+                    ? "Memuat katalog peran…"
+                    : `${String(roles.length)} peran (${String(systemCount)} sistem) dengan ${String(permissionKeys.size)} izin berbeda, langsung dari tabel roles dan role_permissions.`}
               </p>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

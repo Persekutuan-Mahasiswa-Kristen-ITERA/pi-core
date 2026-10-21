@@ -251,11 +251,13 @@ export default function PenugasanPage(): JSX.Element {
               <div>
                 <h2>Daftar Penugasan</h2>
                 <p style={{ fontSize: 12.5, color: "var(--color-muted)", margin: "2px 0 0" }}>
-                  {loading
-                    ? "Memuat…"
-                    : assignmentTotal === null
-                      ? `${String(sorted.length)} penugasan dalam cakupan Anda.`
-                      : `${String(assignmentTotal)} penugasan dalam cakupan Anda${sorted.length < assignmentTotal ? `, menampilkan ${String(sorted.length)} terbaru` : ""}.`}
+                  {!authenticated
+                    ? "Masuk untuk melihat penugasan."
+                    : loading
+                      ? "Memuat…"
+                      : assignmentTotal === null
+                        ? `${String(sorted.length)} penugasan dalam cakupan Anda.`
+                        : `${String(assignmentTotal)} penugasan dalam cakupan Anda${sorted.length < assignmentTotal ? `, menampilkan ${String(sorted.length)} terbaru` : ""}.`}
                 </p>
               </div>
             </div>
