@@ -26,7 +26,7 @@ import {
   type AssignmentFact,
   type RoleKey,
 } from "@pi-core/shared";
-import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, or, sql, type SQL } from "drizzle-orm";
 import { enforceAssignmentChange, findActivePeriodId, writeAudit, type AuthorizationRequest } from "./access";
 import type { Database } from "./client";
 import { assignments, members, orgUnits, periods, positionRoles, positions, roles } from "./schema";
@@ -120,26 +120,34 @@ export interface AssignmentListParams {
   limit?: number | undefined;
 }
 
+/**
+ * Scope, in SQL rather than in memory: `U` sees only its own subtree, `S` only its own rows. Reading
+ * everything and filtering afterwards would put out-of-scope rows in the process's memory and in the
+ * query log, which for an authorization surface is a leak even when the response is correct.
+ *
+ * Shared with the counts query so a total can never describe a wider set than the list the same actor
+ * may read.
+ */
+function assignmentScopeConditions(actor: Actor): SQL[] {
+  const scope = scopeFor(actor, "assignment:read");
+  if (scope === "O") return [];
+
+  const unitScope = actor.unitScope ?? [];
+  const own = eq(assignments.memberId, actor.memberId);
+  if (scope === "U" && unitScope.length > 0) {
+    const inSubtree = or(inArray(assignments.orgUnitId, [...unitScope]), own);
+    if (inSubtree !== undefined) return [inSubtree];
+  }
+  // `S`, or `U` with no subtree (no assignment in the active period): own rows only.
+  return [own];
+}
+
 export async function listAssignments(db: Database, params: AssignmentListParams): Promise<AssignmentView[]> {
-  const conditions = [];
+  const conditions: SQL[] = [];
   if (params.memberId !== undefined) conditions.push(eq(assignments.memberId, params.memberId));
   if (params.orgUnitId !== undefined) conditions.push(eq(assignments.orgUnitId, params.orgUnitId));
   if (params.periodId !== undefined) conditions.push(eq(assignments.periodId, params.periodId));
-
-  // Scope, in SQL rather than in memory: `U` sees only its own subtree, `S` only its own rows. Reading
-  // everything and filtering afterwards would put out-of-scope rows in the process's memory and in the
-  // query log, which for an authorization surface is a leak even when the response is correct.
-  const scope = scopeFor(params.actor, "assignment:read");
-  if (scope !== "O") {
-    const unitScope = params.actor.unitScope ?? [];
-    const own = eq(assignments.memberId, params.actor.memberId);
-    if (scope === "U" && unitScope.length > 0) {
-      conditions.push(or(inArray(assignments.orgUnitId, [...unitScope]), own));
-    } else {
-      // `S`, or `U` with no subtree (no assignment in the active period): own rows only.
-      conditions.push(own);
-    }
-  }
+  conditions.push(...assignmentScopeConditions(params.actor));
 
   const activePeriodId = await findActivePeriodId(db);
 
@@ -174,6 +182,36 @@ export async function listAssignments(db: Database, params: AssignmentListParams
     isActivePeriod: row.periodId === activePeriodId,
     derivedRoles: roleMap.get(row.positionId) ?? [],
   }));
+}
+
+export interface AssignmentTypeCount {
+  /** `org_units.type`, or `"unknown"` when the unit row is gone. */
+  unitType: string;
+  count: number;
+}
+
+/**
+ * Assignments per unit type, counted in SQL.
+ *
+ * The list endpoint caps at 200 rows, so a client that counts the page reports "at least N". This
+ * returns the real totals, over exactly the rows the same actor's scope predicate allows — sharing
+ * `assignmentScopeConditions` is what makes that true rather than hopeful.
+ */
+export async function countAssignmentsByUnitType(
+  db: Database,
+  params: { actor: Actor; periodId?: string | undefined },
+): Promise<AssignmentTypeCount[]> {
+  const conditions: SQL[] = assignmentScopeConditions(params.actor);
+  if (params.periodId !== undefined) conditions.push(eq(assignments.periodId, params.periodId));
+
+  const rows = await db
+    .select({ unitType: orgUnits.type, total: sql<number>`count(*)::int` })
+    .from(assignments)
+    .leftJoin(orgUnits, eq(orgUnits.id, assignments.orgUnitId))
+    .where(conditions.length === 0 ? undefined : and(...conditions))
+    .groupBy(orgUnits.type);
+
+  return rows.map((row) => ({ unitType: row.unitType ?? "unknown", count: Number(row.total) }));
 }
 
 /** The guard's view of the world: where the position sits, and who is being placed in it. */

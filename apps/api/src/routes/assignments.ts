@@ -10,6 +10,7 @@
  */
 import {
   AssignmentError,
+  countAssignmentsByUnitType,
   createAssignment,
   derivedRolesForPosition,
   listAssignments,
@@ -58,6 +59,23 @@ function assignmentFailure(error: unknown): never {
   }
   throw error;
 }
+
+/**
+ * Assignments per unit type, counted in SQL so the figure is a total rather than "at least one page".
+ * Declared before `/:id` for the same reason as `/positions` — Hono matches in registration order.
+ *
+ * `assignment:read` is the same permission the list needs; the counts are computed over exactly the
+ * rows that permission's scope allows, so a unit-scoped actor's totals cannot describe another unit.
+ */
+assignmentRoutes.get("/stats", requirePermission("assignment:read"), async (c) => {
+  const db = c.get("db");
+  const actor = c.get("actor");
+  if (db === undefined || actor === undefined) throw notFound();
+
+  const byUnitType = await countAssignmentsByUnitType(db, { actor });
+  const total = byUnitType.reduce((sum, entry) => sum + entry.count, 0);
+  return c.json({ total, byUnitType });
+});
 
 // Declared before `/:id` so the path is not swallowed as an id — Hono matches in registration order.
 assignmentRoutes.get("/positions", requirePermission("assignment:read"), async (c) => {

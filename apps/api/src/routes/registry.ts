@@ -323,6 +323,15 @@ export const ROUTE_AUTHORIZATION: readonly RouteAuthorization[] = [
   {
     file: "routes/assignments.ts",
     method: "GET",
+    path: "/stats",
+    mountedAt: "/api/v1/assignments",
+    permission: "assignment:read",
+    reason:
+      "Assignments per unit type, so a report can state a total instead of counting one page of an endpoint capped at 200 rows. Counted in SQL over the SAME scope predicate the list uses (`assignmentScopeConditions`), which is what stops a unit-scoped actor's totals from describing units they cannot read.",
+  },
+  {
+    file: "routes/assignments.ts",
+    method: "GET",
     path: "/positions",
     mountedAt: "/api/v1/assignments",
     permission: "assignment:read",
