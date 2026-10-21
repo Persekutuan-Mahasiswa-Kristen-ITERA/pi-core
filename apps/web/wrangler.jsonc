@@ -20,6 +20,15 @@
       "observability": {
         "enabled": true
       }
+    },
+    "production": {
+      "name": "pi-core-web",
+      "vars": {
+        "ENVIRONMENT": "production"
+      },
+      "observability": {
+        "enabled": true
+      }
     }
   }
 }

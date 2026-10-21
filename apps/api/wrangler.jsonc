@@ -92,6 +92,50 @@
 					]
 				}
 			]
+		},
+		"production": {
+			"name": "pi-core-api",
+			"vars": {
+				"ENVIRONMENT": "production",
+				"BETTER_AUTH_URL": "https://api.core.pmkitera.web.id",
+				"MOBILE_REDIRECT_URIS": "picore://auth",
+				"CORS_ORIGINS": "https://core.pmkitera.web.id",
+				"AVATAR_BUCKET": "pmk-core-avatars-prod",
+				"R2_ACCOUNT_ID": "a45092ffd0f9ad41070ed8c57d938052"
+			},
+			"r2_buckets": [
+				{
+					"binding": "AVATARS",
+					"bucket_name": "pmk-core-avatars-prod"
+				}
+			],
+			"hyperdrive": [
+				{
+					"binding": "HYPERDRIVE",
+					"id": "00000000000000000000000000000000"
+				}
+			],
+			"triggers": {
+				"crons": [
+					"0 */6 * * *"
+				]
+			},
+			"durable_objects": {
+				"bindings": [
+					{
+						"name": "REALTIME_HUB",
+						"class_name": "RealtimeHub"
+					}
+				]
+			},
+			"migrations": [
+				{
+					"tag": "v1",
+					"new_sqlite_classes": [
+						"RealtimeHub"
+					]
+				}
+			]
 		}
 	}
 }

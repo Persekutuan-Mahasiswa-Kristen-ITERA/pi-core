@@ -32,6 +32,19 @@ pnpm --filter @pi-core/api exec wrangler deploy --env staging
 ### 2.2 Production Deployment (Requires Owner Approval)
 > ⚠️ **Hard Rule:** Never deploy to production or execute production migrations without explicit owner confirmation in conversation.
 
+**Step 0 — run the preflight, and fix what it refuses.** The production `env` block exists in both
+`wrangler.jsonc` files, but the Hyperdrive id is the all-zeros placeholder until the production Supabase
+project exists. The script reads config and secret *names* only — it never prints a value — and exits 1
+while anything is still staging-shaped or unconfigured:
+
+```bash
+pnpm check:production                 # add --skip-secrets to check config only
+```
+
+It refuses, among others: a production Hyperdrive id that is the staging one (live traffic on staging
+data), any production var still naming a `staging` origin, and a missing `BETTER_AUTH_SECRET` /
+`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `R2_*` secret on the production Worker.
+
 ```bash
 # 1. Take a full database backup before deployment (see §6)
 # 2. Deploy Web Worker
