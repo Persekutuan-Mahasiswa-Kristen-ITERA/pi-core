@@ -23,6 +23,14 @@ import { IntegrationsPanel } from "./integrations";
 import { useRealtime } from "./realtime";
 import { apiFetch } from "../lib/api-client";
 import { API_BASE_URL } from "../lib/oidc";
+import {
+  roleSummary,
+  statText,
+  unitBreakdown,
+  unitBreakdownText,
+  type RoleSummary,
+  type UnitBreakdown,
+} from "../lib/dashboard-stats";
 import { useSession } from "../lib/session";
 
 /** The subset of `GET /api/v1/members` this screen renders. */
@@ -38,6 +46,11 @@ export default function DashboardPage(): JSX.Element {
   const apiBaseUrl = API_BASE_URL;
   const { state: session } = useSession();
   const [members, setMembers] = useState<MemberRow[]>([]);
+  const [memberCounts, setMemberCounts] = useState<{ total: number; active: number; inactive: number } | null>(
+    null,
+  );
+  const [unitStats, setUnitStats] = useState<UnitBreakdown | null>(null);
+  const [rbacStats, setRbacStats] = useState<RoleSummary | null>(null);
   const [membersLoading, setMembersLoading] = useState(false);
   const [membersError, setMembersError] = useState<string | null>(null);
 
@@ -90,6 +103,58 @@ export default function DashboardPage(): JSX.Element {
   useEffect(() => {
     void loadMembers();
   }, [loadMembers]);
+
+  /**
+   * The three numbers behind the stat cards, each fetched from an endpoint that counts rather than from
+   * a page of rows.
+   *
+   * They are independent on purpose: `/org-units` needs `orgunit:read` and `/roles` needs `role:read`, so
+   * an actor can legitimately hold one and not the others. A failure leaves that card at `null` ("—")
+   * instead of a zero, which would read as "this organization has no units".
+   */
+  const loadStats = useCallback(async (): Promise<void> => {
+    if (session.status !== "authenticated") {
+      setMemberCounts(null);
+      setUnitStats(null);
+      setRbacStats(null);
+      return;
+    }
+
+    const [membersResponse, unitsResponse, rolesResponse] = await Promise.all([
+      apiFetch("/api/v1/members/stats").catch(() => null),
+      apiFetch("/api/v1/org-units").catch(() => null),
+      apiFetch("/api/v1/roles").catch(() => null),
+    ]);
+
+    if (membersResponse?.ok === true) {
+      const body = (await membersResponse.json()) as { total?: number; active?: number; inactive?: number };
+      setMemberCounts(
+        typeof body.total === "number"
+          ? { total: body.total, active: body.active ?? 0, inactive: body.inactive ?? 0 }
+          : null,
+      );
+    } else {
+      setMemberCounts(null);
+    }
+
+    if (unitsResponse?.ok === true) {
+      const body = (await unitsResponse.json()) as { items?: Array<{ type: string }> };
+      setUnitStats(unitBreakdown(body.items ?? []));
+    } else {
+      setUnitStats(null);
+    }
+
+    if (rolesResponse?.ok === true) {
+      const body = (await rolesResponse.json()) as { items?: Array<{ permissions: Array<{ key: string }> }> };
+      setRbacStats(roleSummary(body.items ?? []));
+    } else {
+      setRbacStats(null);
+    }
+  }, [session.status]);
+
+  useEffect(() => {
+    void loadStats();
+  }, [loadStats]);
 
   useRealtime({
     apiBaseUrl,
@@ -173,11 +238,17 @@ export default function DashboardPage(): JSX.Element {
                 </div>
               </div>
               <strong className="stat-value">
-                {session.status === "authenticated" ? members.length : "—"}
+                {session.status === "authenticated" ? statText(memberCounts?.total ?? null) : "—"}
               </strong>
               <div className="stat-meta">
                 <TrendingUp size={14} />
-                <span>Terbaru dari API</span>
+                <span>
+                  {session.status !== "authenticated"
+                    ? "Masuk untuk melihat"
+                    : memberCounts === null
+                      ? "Tidak dapat dimuat"
+                      : `${String(memberCounts.active)} aktif · ${String(memberCounts.inactive)} nonaktif`}
+                </span>
               </div>
             </article>
 
@@ -195,7 +266,13 @@ export default function DashboardPage(): JSX.Element {
               </strong>
               <div className="stat-meta" style={{ color: "#059669" }}>
                 <span className="badge-dot" style={{ backgroundColor: "#059669" }} />
-                <span>Masa Bakti Berjalan</span>
+                <span>
+                  {session.status !== "authenticated"
+                    ? "Masuk untuk melihat"
+                    : session.access.activePeriod !== null && session.access.activePeriod !== undefined
+                      ? "Masa Bakti Berjalan"
+                      : "Belum ada periode aktif"}
+                </span>
               </div>
             </article>
 
@@ -206,9 +283,19 @@ export default function DashboardPage(): JSX.Element {
                   <Layers size={18} />
                 </div>
               </div>
-              <strong className="stat-value">25 Unit</strong>
+              <strong className="stat-value">
+                {session.status === "authenticated" && unitStats !== null
+                  ? `${String(unitStats.total)} Unit`
+                  : "—"}
+              </strong>
               <div className="stat-meta neutral">
-                <span>1 BPH · 8 Dept · 16 Divisi</span>
+                <span>
+                  {session.status !== "authenticated"
+                    ? "Masuk untuk melihat"
+                    : unitStats === null
+                      ? "Tidak dapat dimuat"
+                      : unitBreakdownText(unitStats) || "Belum ada unit"}
+                </span>
               </div>
             </article>
 
@@ -219,9 +306,19 @@ export default function DashboardPage(): JSX.Element {
                   <ShieldCheck size={18} />
                 </div>
               </div>
-              <strong className="stat-value">10 Peran</strong>
+              <strong className="stat-value">
+                {session.status === "authenticated" && rbacStats !== null
+                  ? `${String(rbacStats.roles)} Peran`
+                  : "—"}
+              </strong>
               <div className="stat-meta neutral">
-                <span>23 Granular Permissions</span>
+                <span>
+                  {session.status !== "authenticated"
+                    ? "Masuk untuk melihat"
+                    : rbacStats === null
+                      ? "Tidak dapat dimuat"
+                      : `${String(rbacStats.permissions)} izin berbeda`}
+                </span>
               </div>
             </article>
           </section>
