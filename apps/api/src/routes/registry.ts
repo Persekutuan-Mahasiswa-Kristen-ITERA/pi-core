@@ -496,6 +496,15 @@ export const ROUTE_AUTHORIZATION: readonly RouteAuthorization[] = [
   {
     file: "routes/audit.ts",
     method: "GET",
+    path: "/entity-types",
+    mountedAt: "/api/v1/audit",
+    permission: "audit:read",
+    reason:
+      "The distinct entity types present in the log, so the UI can offer an entity filter that is guaranteed to match something instead of a hardcoded list that drifts from the rows. Same guard and same org-wide scope reasoning as the list: a U-scoped holder is refused by the db layer, because the log cannot be narrowed to a unit subtree.",
+  },
+  {
+    file: "routes/audit.ts",
+    method: "GET",
     path: "/",
     mountedAt: "/api/v1/audit",
     permission: "audit:read",

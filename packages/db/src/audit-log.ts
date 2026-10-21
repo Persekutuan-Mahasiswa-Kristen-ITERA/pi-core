@@ -160,3 +160,13 @@ export async function listAuditActions(db: Database): Promise<string[]> {
   const rows = await db.selectDistinct({ action: auditLogs.action }).from(auditLogs);
   return rows.map((row) => row.action).sort();
 }
+
+/**
+ * The distinct entity types present in the log — the same reasoning as `listAuditActions`: a filter
+ * built from a hardcoded list offers choices that match nothing and hides ones that do, so the values
+ * come from the rows themselves.
+ */
+export async function listAuditEntityTypes(db: Database): Promise<string[]> {
+  const rows = await db.selectDistinct({ entityType: auditLogs.entityType }).from(auditLogs);
+  return rows.map((row) => row.entityType).sort();
+}

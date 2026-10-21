@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type JSX } from "react";
-import { Filter, Lock, Clock, Globe, RefreshCw, ShieldAlert } from "lucide-react";
+import { Filter, Lock, Clock, Globe, RefreshCw, ShieldAlert, Boxes, CalendarDays, X } from "lucide-react";
 import { Sidebar, MobileNav } from "../../components/Sidebar";
 import { TopHeader } from "../../components/TopHeader";
 import { apiFetch } from "../../lib/api-client";
@@ -29,6 +29,30 @@ interface AuditPage {
 }
 
 const PAGE_SIZE = 50;
+
+const ALL = "Semua";
+
+/** What the reader has narrowed the log to. Empty strings mean "not filtered". */
+interface AuditFilters {
+  action: string;
+  entityType: string;
+  from: string;
+  to: string;
+}
+
+/**
+ * A WIB calendar day as the UTC instant it begins or ends.
+ *
+ * The picker gives `YYYY-MM-DD` in the reader's day, and the API validates `z.iso.datetime()`, which
+ * expects `Z`. Converting through `+07:00` keeps "today" meaning today in Jakarta rather than starting
+ * at 07:00 local as a naive `T00:00:00Z` would.
+ */
+function wibDayBoundary(day: string, edge: "start" | "end"): string | null {
+  if (day === "") return null;
+  const time = edge === "start" ? "T00:00:00.000" : "T23:59:59.999";
+  const parsed = new Date(`${day}${time}+07:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
 
 function formatValue(value: unknown): string {
   if (value === null || value === undefined) return "kosong";
@@ -75,13 +99,17 @@ export default function AuditLogPage(): JSX.Element {
 
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [actions, setActions] = useState<string[]>([]);
+  const [entityTypes, setEntityTypes] = useState<string[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState("Semua");
+  const [filter, setFilter] = useState(ALL);
+  const [entityFilter, setEntityFilter] = useState(ALL);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
   const load = useCallback(
-    async (action: string, cursor: string | null): Promise<void> => {
+    async (filters: AuditFilters, cursor: string | null): Promise<void> => {
       if (!authenticated) {
         setEntries([]);
         setLoading(false);
@@ -92,7 +120,12 @@ export default function AuditLogPage(): JSX.Element {
       setError(null);
       try {
         const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
-        if (action !== "Semua") params.set("action", action);
+        if (filters.action !== ALL) params.set("action", filters.action);
+        if (filters.entityType !== ALL) params.set("entityType", filters.entityType);
+        const from = wibDayBoundary(filters.from, "start");
+        if (from !== null) params.set("from", from);
+        const to = wibDayBoundary(filters.to, "end");
+        if (to !== null) params.set("to", to);
         if (cursor !== null) params.set("cursor", cursor);
 
         const response = await apiFetch(`/api/v1/audit?${params.toString()}`);
@@ -126,25 +159,35 @@ export default function AuditLogPage(): JSX.Element {
   );
 
   useEffect(() => {
-    void load(filter, null);
-  }, [load, filter]);
+    void load({ action: filter, entityType: entityFilter, from: fromDate, to: toDate }, null);
+  }, [load, filter, entityFilter, fromDate, toDate]);
 
-  // The chips come from the log itself, so a filter can never offer an action that matches nothing.
+  // The chips come from the log itself, so a filter can never offer a value that matches nothing.
   useEffect(() => {
     if (!authenticated) return;
     void (async () => {
       try {
-        const response = await apiFetch("/api/v1/audit/actions");
-        if (!response.ok) return;
-        const body = (await response.json()) as { items: string[] };
-        setActions(body.items);
+        const [actionResponse, entityResponse] = await Promise.all([
+          apiFetch("/api/v1/audit/actions"),
+          apiFetch("/api/v1/audit/entity-types"),
+        ]);
+        if (actionResponse.ok) {
+          const body = (await actionResponse.json()) as { items: string[] };
+          setActions(body.items);
+        }
+        if (entityResponse.ok) {
+          const body = (await entityResponse.json()) as { items: string[] };
+          setEntityTypes(body.items);
+        }
       } catch {
         // The chips are a convenience; the table still works without them.
       }
     })();
   }, [authenticated]);
 
-  const chips = ["Semua", ...actions];
+  const chips = [ALL, ...actions];
+  const entityChips = [ALL, ...entityTypes];
+  const filtersActive = filter !== ALL || entityFilter !== ALL || fromDate !== "" || toDate !== "";
 
   return (
     <div className="shell">
@@ -177,7 +220,7 @@ export default function AuditLogPage(): JSX.Element {
                 className="button button-secondary"
                 type="button"
                 style={{ marginLeft: 12, minHeight: 28, padding: "2px 10px", fontSize: 12 }}
-                onClick={() => void load(filter, null)}
+                onClick={() => void load({ action: filter, entityType: entityFilter, from: fromDate, to: toDate }, null)}
               >
                 <RefreshCw size={13} /> Coba lagi
               </button>
@@ -201,6 +244,67 @@ export default function AuditLogPage(): JSX.Element {
                   {action}
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div className="filter-bar">
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Boxes size={15} style={{ color: "var(--color-muted)" }} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-heading)" }}>Filter Entitas:</span>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {entityChips.map((entityType) => (
+                <button
+                  key={entityType}
+                  type="button"
+                  className={`button ${entityFilter === entityType ? "button-gold" : "button-secondary"}`}
+                  style={{ minHeight: 32, padding: "4px 12px", fontSize: 12 }}
+                  onClick={() => setEntityFilter(entityType)}
+                >
+                  {entityType}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="filter-bar">
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <CalendarDays size={15} style={{ color: "var(--color-muted)" }} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-heading)" }}>Rentang Waktu (WIB):</span>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+              <input
+                type="date"
+                className="select-input"
+                aria-label="Dari tanggal"
+                value={fromDate}
+                max={toDate === "" ? undefined : toDate}
+                onChange={(event) => setFromDate(event.target.value)}
+              />
+              <span style={{ fontSize: 12.5, color: "var(--color-muted)" }}>sampai</span>
+              <input
+                type="date"
+                className="select-input"
+                aria-label="Sampai tanggal"
+                value={toDate}
+                min={fromDate === "" ? undefined : fromDate}
+                onChange={(event) => setToDate(event.target.value)}
+              />
+              {filtersActive ? (
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  style={{ minHeight: 32, padding: "4px 12px", fontSize: 12 }}
+                  onClick={() => {
+                    setFilter(ALL);
+                    setEntityFilter(ALL);
+                    setFromDate("");
+                    setToDate("");
+                  }}
+                >
+                  <X size={13} /> Reset filter
+                </button>
+              ) : null}
             </div>
           </div>
 
@@ -319,7 +423,7 @@ export default function AuditLogPage(): JSX.Element {
                   className="button button-secondary"
                   type="button"
                   disabled={loading}
-                  onClick={() => void load(filter, nextCursor)}
+                  onClick={() => void load({ action: filter, entityType: entityFilter, from: fromDate, to: toDate }, nextCursor)}
                 >
                   {loading ? "Memuat…" : "Muat lebih banyak"}
                 </button>

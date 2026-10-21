@@ -5,7 +5,7 @@
  * because holding a permission and being allowed to see this particular data are different questions, and
  * the log has no unit relation to narrow a `U`-scoped holder by.
  */
-import { AuditError, listAuditActions, listAuditEntries } from "@pi-core/db";
+import { AuditError, listAuditActions, listAuditEntries, listAuditEntityTypes } from "@pi-core/db";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../env";
@@ -46,6 +46,12 @@ const listQuery = z
     cursor: z.string().trim().min(1).max(400).optional(),
   })
   .strict();
+
+auditRoutes.get("/entity-types", requirePermission("audit:read"), async (c) => {
+  const db = c.get("db");
+  if (db === undefined) throw notFound();
+  return c.json({ items: await listAuditEntityTypes(db) });
+});
 
 auditRoutes.get("/", requirePermission("audit:read"), async (c) => {
   const db = c.get("db");
