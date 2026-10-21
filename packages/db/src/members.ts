@@ -225,12 +225,40 @@ export async function getMember(
   return (rows[0] as MemberListItem | undefined) ?? null;
 }
 
-/** Total members visible to the actor — used by the health/diagnostic surfaces, never by a page. */
-export async function countVisibleMembers(db: Database, actor: Actor): Promise<number> {
+export interface MemberStatusCounts {
+  total: number;
+  active: number;
+  inactive: number;
+}
+
+/**
+ * Counts of the members the actor may see, split by lifecycle status.
+ *
+ * A page that showed `items.length` from a `limit=6` fetch as "Total Anggota" was off by however many
+ * members existed — the dashboard did exactly that. Counting in SQL under the *same* scope predicate as
+ * `listMembers` is the only way the two cannot disagree.
+ *
+ * `count(*)` comes back as a string from some drivers, so every value is coerced rather than trusted.
+ */
+export async function countVisibleMembersByStatus(db: Database, actor: Actor): Promise<MemberStatusCounts> {
   const scope = await scopeCondition(db, actor);
   const rows = await db
-    .select({ n: sql<number>`count(*)::int` })
+    .select({ status: members.status, n: sql<number>`count(*)::int` })
     .from(members)
-    .where(scope === undefined ? undefined : scope);
-  return rows[0]?.n ?? 0;
+    .where(scope === undefined ? undefined : scope)
+    .groupBy(members.status);
+
+  const counts: MemberStatusCounts = { total: 0, active: 0, inactive: 0 };
+  for (const row of rows) {
+    const n = Number(row.n);
+    counts.total += n;
+    if (row.status === "active") counts.active += n;
+    else if (row.status === "inactive") counts.inactive += n;
+  }
+  return counts;
+}
+
+/** Total members visible to the actor — the scalar form of `countVisibleMembersByStatus`. */
+export async function countVisibleMembers(db: Database, actor: Actor): Promise<number> {
+  return (await countVisibleMembersByStatus(db, actor)).total;
 }

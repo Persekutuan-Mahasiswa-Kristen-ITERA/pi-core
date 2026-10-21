@@ -5,7 +5,15 @@
  * read members at all, and `listMembers`/`getMember` decide *which* ones, inside the SQL. Nothing here
  * filters rows in application code, so there is no path that could return a member the scope excluded.
  */
-import { createMember, deactivateMember, getMember, listMembers, MemberWriteError, updateMember } from "@pi-core/db";
+import {
+  countVisibleMembersByStatus,
+  createMember,
+  deactivateMember,
+  getMember,
+  listMembers,
+  MemberWriteError,
+  updateMember,
+} from "@pi-core/db";
 import { createRealtimeEvent } from "@pi-core/shared";
 import type { Context } from "hono";
 import { Hono } from "hono";
@@ -62,6 +70,22 @@ memberRoutes.get("/", requirePermission("member:read"), async (c) => {
     nextCursor: result.nextCursor,
     sensitiveIncluded: result.sensitiveIncluded,
   });
+});
+
+memberRoutes.get("/stats", requirePermission("member:read"), async (c) => {
+  const db = c.get("db");
+  const actor = c.get("actor");
+  if (db === undefined || actor === undefined) throw notFound();
+
+  /**
+   * Declared **before** `/:id`: Hono matches in registration order, so `/:id` would otherwise swallow
+   * "stats" and answer 404 "Member not found." for a member id that never existed.
+   *
+   * The counts use the same scope predicate as the list (`countVisibleMembersByStatus`), because a total
+   * that ignored scope would tell a unit head how many members exist outside their unit.
+   */
+  const counts = await countVisibleMembersByStatus(db, actor);
+  return c.json(counts);
 });
 
 memberRoutes.get("/:id", requirePermission("member:read"), async (c) => {

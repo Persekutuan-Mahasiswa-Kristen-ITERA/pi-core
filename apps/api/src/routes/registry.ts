@@ -144,6 +144,15 @@ export const ROUTE_AUTHORIZATION: readonly RouteAuthorization[] = [
   {
     file: "routes/members.ts",
     method: "GET",
+    path: "/stats",
+    mountedAt: "/api/v1/members",
+    permission: "member:read",
+    reason:
+      "Member counts by lifecycle status, so the dashboard can state a real total instead of showing the length of a `limit=6` fetch as \"Total Anggota\". Counted in SQL over the SAME scope predicate as the list (`countVisibleMembersByStatus`), because a total that ignored scope would tell a unit head how many members exist outside their unit. Declared BEFORE /:id: Hono matches in registration order, so the reverse would answer 404 for a member id called \"stats\".",
+  },
+  {
+    file: "routes/members.ts",
+    method: "GET",
     path: "/:id",
     mountedAt: "/api/v1/members",
     permission: "member:read",
