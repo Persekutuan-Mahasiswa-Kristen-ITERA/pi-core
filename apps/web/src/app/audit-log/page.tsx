@@ -5,6 +5,7 @@ import { Filter, Lock, Clock, Globe, RefreshCw, ShieldAlert, Boxes, CalendarDays
 import { Sidebar, MobileNav } from "../../components/Sidebar";
 import { TopHeader } from "../../components/TopHeader";
 import { apiFetch } from "../../lib/api-client";
+import { ALL, buildAuditQuery, type AuditFilters } from "../../lib/audit-filters";
 import { useSession } from "../../lib/session";
 
 /** `AuditEntryView` in `packages/db/src/audit-log.ts` — `before`/`after` are already redacted. */
@@ -29,30 +30,6 @@ interface AuditPage {
 }
 
 const PAGE_SIZE = 50;
-
-const ALL = "Semua";
-
-/** What the reader has narrowed the log to. Empty strings mean "not filtered". */
-interface AuditFilters {
-  action: string;
-  entityType: string;
-  from: string;
-  to: string;
-}
-
-/**
- * A WIB calendar day as the UTC instant it begins or ends.
- *
- * The picker gives `YYYY-MM-DD` in the reader's day, and the API validates `z.iso.datetime()`, which
- * expects `Z`. Converting through `+07:00` keeps "today" meaning today in Jakarta rather than starting
- * at 07:00 local as a naive `T00:00:00Z` would.
- */
-function wibDayBoundary(day: string, edge: "start" | "end"): string | null {
-  if (day === "") return null;
-  const time = edge === "start" ? "T00:00:00.000" : "T23:59:59.999";
-  const parsed = new Date(`${day}${time}+07:00`);
-  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
-}
 
 function formatValue(value: unknown): string {
   if (value === null || value === undefined) return "kosong";
@@ -119,16 +96,9 @@ export default function AuditLogPage(): JSX.Element {
       setLoading(true);
       setError(null);
       try {
-        const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
-        if (filters.action !== ALL) params.set("action", filters.action);
-        if (filters.entityType !== ALL) params.set("entityType", filters.entityType);
-        const from = wibDayBoundary(filters.from, "start");
-        if (from !== null) params.set("from", from);
-        const to = wibDayBoundary(filters.to, "end");
-        if (to !== null) params.set("to", to);
-        if (cursor !== null) params.set("cursor", cursor);
+        const params = buildAuditQuery(filters, cursor, PAGE_SIZE);
 
-        const response = await apiFetch(`/api/v1/audit?${params.toString()}`);
+        const response = await apiFetch(`/api/v1/audit?${params}`);
         if (response.status === 401) {
           setError("Sesi berakhir. Masuk kembali untuk melihat log audit.");
           setEntries([]);
