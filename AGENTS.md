@@ -62,7 +62,10 @@ Verified on 2026-10-15 (Node 26 / pnpm 10.20.0). Run from the repo root.
 | Install                | `pnpm install`                                                             | Frozen in CI: `pnpm install --frozen-lockfile`   |
 | Typecheck              | `pnpm -r typecheck` (or `pnpm typecheck` via Turbo)                        |                                                  |
 | Lint                   | `pnpm -r lint`                                                             | Shared ESLint flat config from `@pi-core/config` |
-| Test                   | `pnpm -r test`                                                             | No test suites yet (Epic 2 adds them)            |
+| Test                   | `pnpm -r test`                                                             | shared 96 (vitest), api 90 (vitest), mobile 13 (jest-expo) |
+| Test (mobile only)     | `pnpm --filter @pi-core/mobile test`                                        | jest-expo; renders screens headlessly, no device or Metro |
+| Export mobile bundle   | `pnpm --filter @pi-core/mobile exec expo export --platform android`         | Proves the app graph builds; needs no device |
+| Preview app in browser | `pnpm --filter @pi-core/mobile exec expo export --platform web` then serve the output dir | Web is a **preview only**: memory-only session, never persisted |
 | Format                 | `pnpm format` / `pnpm format:check`                                        | Prettier                                         |
 | Build (all)            | `pnpm build` (Turbo)                                                       |                                                  |
 | Build web (Next)       | `pnpm --filter @pi-core/web build`                                         | `next build` only                                |
@@ -77,7 +80,7 @@ Verified on 2026-10-15 (Node 26 / pnpm 10.20.0). Run from the repo root.
 
 Staging URL: **https://pi-core-web-staging.pmkitera.workers.dev** (Cloudflare account `biroitpmkitera@gmail.com`, `workers.dev` subdomain `pmkitera`).
 
-Not yet applicable: `db:migrate` / `db:seed` (Epic 2), mobile dev `pnpm --filter @pi-core/mobile dev` (Epic 5 — `apps/mobile` does not exist yet).
+Not yet applicable: `db:migrate` / `db:seed` (Epic 2), mobile dev `pnpm --filter @pi-core/mobile dev` (no such script — use `start`/`android`; `apps/mobile` exists).
 Production deploy is approval-gated; there is no `deploy:production` script.
 
 ## Workflow: Inspect → Understand → Plan → Implement → Validate → Report

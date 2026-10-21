@@ -3,7 +3,7 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "lib": ["ES2023", "DOM"],
-    "types": ["react", "react-native"],
+    "types": ["react", "react-native", "jest"],
     "noEmit": true,
     "allowJs": true
   },

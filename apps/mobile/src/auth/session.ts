@@ -15,6 +15,7 @@
 import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
+import { Platform } from "react-native";
 
 import { API_URL, MOBILE_REDIRECT_URI } from "../config";
 
@@ -109,13 +110,45 @@ export class MobileSignInError extends Error {
 // Session storage — the only place a token is written on the device
 // ---------------------------------------------------------------------------
 
+/** The three operations the session needs, so the target can be swapped by platform. */
+interface SessionStorage {
+  getItemAsync(key: string): Promise<string | null>;
+  setItemAsync(key: string, value: string): Promise<void>;
+  deleteItemAsync(key: string): Promise<void>;
+}
+
+/**
+ * Where the token lives: the OS keychain/keystore on native.
+ *
+ * **Web is a preview surface, not a shipped target**, and it gets a memory-only store. Two reasons:
+ * `expo-secure-store` has no web implementation — calling it there rejects, which is what broke the
+ * preview build — and the obvious substitute, `localStorage`, is plain text readable by any script on
+ * the origin, exactly what point 3 above exists to avoid. A browser session therefore lasts as long as
+ * the tab, and a token is never written to disk.
+ */
+const storage: SessionStorage =
+  Platform.OS === "web"
+    ? (() => {
+        let value: string | null = null;
+        return {
+          getItemAsync: async (): Promise<string | null> => value,
+          setItemAsync: async (_key: string, next: string): Promise<void> => {
+            value = next;
+          },
+          deleteItemAsync: async (): Promise<void> => {
+            value = null;
+          },
+        };
+      })()
+    : SecureStore;
+
 export async function saveSession(session: SignedInSession): Promise<void> {
-  await SecureStore.setItemAsync(TOKEN_KEY, JSON.stringify(session));
+  await storage.setItemAsync(TOKEN_KEY, JSON.stringify(session));
 }
 
 /** The stored session, or `null`. Expired tokens are cleared rather than handed out. */
 export async function loadSession(): Promise<SignedInSession | null> {
-  const raw = await SecureStore.getItemAsync(TOKEN_KEY);
+  const raw = await storage.getItemAsync(TOKEN_KEY);
   if (raw === null) return null;
   try {
     const parsed = JSON.parse(raw) as SignedInSession;
@@ -132,7 +165,7 @@ export async function loadSession(): Promise<SignedInSession | null> {
 }
 
 export async function clearSession(): Promise<void> {
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
+  await storage.deleteItemAsync(TOKEN_KEY);
 }
 
 /** Headers for an authenticated call. Kept in one place so no request forgets the scheme. */
