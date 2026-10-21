@@ -15,7 +15,7 @@
     "test": "echo \"no tests in @pi-core/config\" && exit 0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.36.0",
+    "@eslint/js": "^10.0.1",
     "eslint": "^9.36.0",
     "globals": "^16.4.0",
     "typescript": "^5.9.2",
