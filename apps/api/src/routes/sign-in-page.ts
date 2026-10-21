@@ -7,10 +7,10 @@
  * work at all; the admin web app is a different origin and would need `SameSite=None` cross-site
  * cookies instead (noted in ADR-0015).
  *
- * This is a **staging placeholder**, not the product UI — the real sign-in screen comes from the
- * Figma design in Epic 4. It deliberately shows the session it obtained (member id and effective
- * roles) because that is the end-to-end proof that the whole chain works: Google consent → callback
- * → session cookie → admission → RBAC roles.
+ * This is a **minimal** sign-in entry point, not the designed product UI (the Figma login screen is
+ * the web/mobile app's own). It carries no internal identifiers — no story or requirement numbers — in
+ * anything a member can read, and it does not print the member id; the email and effective roles are
+ * the only confirmation it shows, because those are what a person can verify about themselves.
  *
  * Public in the FR-25 registry: a sign-in page is by definition reachable without a session.
  */
@@ -125,15 +125,11 @@ signInPageRoutes.get("/", (c) => {
     return c.html(
       page(`
         <h1>Sudah masuk</h1>
-        <p>Login berhasil — seluruh rantai bekerja: consent Google → callback → cookie sesi →
-           pemeriksaan admission → peran RBAC.</p>
+        <p>Anda sudah masuk sebagai <strong>${escapeHtml(email)}</strong>.</p>
         <dl>
-          <dt>Email</dt><dd>${escapeHtml(email)}</dd>
-          <dt>Member id</dt><dd>${escapeHtml(actor.memberId)}</dd>
           <dt>Peran efektif</dt><dd><div class="roles">${roles}</div></dd>
         </dl>
-        <div class="note">Halaman uji sementara (story 3.1). Layar login sebenarnya dibuat di Epic 4
-          dari desain Figma.</div>
+        <div class="note">Halaman ini hanya konfirmasi. Aplikasi dan portal admin memakai sesi yang sama.</div>
       `),
     );
   }
@@ -145,8 +141,7 @@ signInPageRoutes.get("/", (c) => {
          <code>@student.itera.ac.id</code>).</p>
       <button id="go" type="button">Masuk dengan Google</button>
       <div id="err"></div>
-      <div class="note">Halaman uji sementara (story 3.1). Tidak ada sign-in kata sandi —
-        hanya Google, sesuai FR-1.</div>
+      <div class="note">Hanya akun Google kampus yang diterima. PI-CORE tidak pernah menyimpan kata sandi.</div>
       <script>
         const btn = document.getElementById('go');
         const err = document.getElementById('err');
