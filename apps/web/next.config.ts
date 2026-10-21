@@ -16,9 +16,22 @@ void initOpenNextCloudflareForDev();
 /**
  * The API origin the browser talks to. Derived from the same variable the client reads, so the CSP
  * cannot drift from where the app actually sends its bearer tokens.
+ *
+ * The staging default is a convenience for local and staging builds. A **production** build must pass
+ * the variable explicitly, because `NEXT_PUBLIC_*` is baked into the bundle at build time: building the
+ * production Worker without it would ship a bundle that calls the staging API and a CSP that permits
+ * only the staging origin — a mistake that would look like "production is broken" after deploy. Hence
+ * the hard stop below, triggered only when the build is told it is for production.
  */
 const apiOrigin =
   process.env.NEXT_PUBLIC_API_URL ?? "https://pi-core-api-staging.pmkitera.workers.dev";
+
+if (process.env.ENVIRONMENT === "production" && process.env.NEXT_PUBLIC_API_URL === undefined) {
+  throw new Error(
+    "ENVIRONMENT=production but NEXT_PUBLIC_API_URL is unset: the bundle would call the staging API. " +
+      "Build with NEXT_PUBLIC_API_URL=https://api.core.pmkitera.web.id.",
+  );
+}
 
 /** `https:` → `wss:`, `http:` → `ws:`; the realtime hub upgrades the same host. */
 const realtimeOrigin = apiOrigin.replace(/^http/, "ws");

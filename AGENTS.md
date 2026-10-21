@@ -14,6 +14,7 @@ Existing apps PI-LYNK, PI-INGRESS, PI-ARK and PI-NEXUS are OUT OF SCOPE. Never m
 4. `docs/BMAD-INTEGRATION.md` (how BMAD is used here), `docs/STATE.md` (where we are) and `docs/ROADMAP.md` (phases; update when a phase finishes). Phase specs: `docs/phases/`
 5. `docs/decisions/` — ADRs. Check before re-deciding anything; add a new ADR for every significant decision.
 6. `.agents/skills/*/SKILL.md` — load the matching skill before doing that kind of work.
+7. `docs/PANDUAN-DEPLOY.md` — panduan deploy (staging, produksi, APK/AAB) dalam Bahasa Indonesia; `docs/OPERATIONS.md` is the full runbook.
 
 ## CONTINUE PROTOCOL — what to do when the owner says "lanjutkan" (or "continue")
 

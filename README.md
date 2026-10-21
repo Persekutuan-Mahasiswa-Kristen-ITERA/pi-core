@@ -17,6 +17,11 @@ Dokumen untuk agent berbahasa Inggris (presisi). Penjelasan untuk pemilik = Indo
 - **`lanjutkan sampai selesai`** = agent boleh menyambung antar fase tanpa jeda review, tetap berhenti di persetujuan (produksi, resource berbayar, dll.).
 - Kalau agent butuh sesuatu darimu (akses akun, OAuth client, keputusan), ia mengumpulkannya dalam satu pesan; setelah kamu jawab, ketik `lanjutkan` lagi.
 
+## Deploy (website & aplikasi Android)
+Baca **`docs/PANDUAN-DEPLOY.md`** — panduan langkah demi langkah dalam Bahasa Indonesia: deploy staging,
+checklist produksi, build APK/AAB, dan masalah umum beserta penyebabnya. Manual operasional lengkap
+(insiden, rotasi kunci, backup) ada di `docs/OPERATIONS.md`.
+
 ## Fallback jika Hermes tidak memuat AGENTS.md otomatis
 Tempel pesan pertama ini sekali saja:
 > Baca `AGENTS.md`, lalu ikuti bagian "CONTINUE PROTOCOL". Lanjutkan proyek PI-CORE sekarang.
