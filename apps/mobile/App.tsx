@@ -382,13 +382,12 @@ function ReportsScreen() {
     return `${String(units[type] ?? 0)} unit`;
   };
 
-  // "3 unit · 12 penugasan", with a "+" when the assignment page was full.
+  // "3 unit · 12 penugasan", counted server-side so it is a total, not one page of one.
   const detailOf = (type: string): string => {
     if (summary === null || assignments === null) {
       return failed ? "Tidak dapat dimuat" : "Memuat…";
     }
-    const count = assignments.byUnitType[type] ?? 0;
-    return `${String(count)}${assignments.isFloor ? "+" : ""} penugasan`;
+    return `${String(assignments.byUnitType[type] ?? 0)} penugasan`;
   };
 
   return (

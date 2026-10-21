@@ -57,6 +57,7 @@ export default function PenugasanPage(): JSX.Element {
   const authenticated = session.state.status === "authenticated";
 
   const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
+  const [assignmentTotal, setAssignmentTotal] = useState<number | null>(null);
   const [positions, setPositions] = useState<PositionRow[]>([]);
   const [units, setUnits] = useState<OrgUnitRow[]>([]);
   const [members, setMembers] = useState<MemberOption[]>([]);
@@ -84,9 +85,10 @@ export default function PenugasanPage(): JSX.Element {
     setLoading(true);
     setError(null);
     try {
-      const [assignmentResponse, positionResponse, unitResponse, memberResponse, periodResponse] =
+      const [assignmentResponse, statsResponse, positionResponse, unitResponse, memberResponse, periodResponse] =
         await Promise.all([
           apiFetch("/api/v1/assignments?limit=200"),
+          apiFetch("/api/v1/assignments/stats"),
           apiFetch("/api/v1/assignments/positions"),
           apiFetch("/api/v1/org-units"),
           apiFetch("/api/v1/members?limit=100"),
@@ -104,6 +106,11 @@ export default function PenugasanPage(): JSX.Element {
       }
 
       setAssignments(((await assignmentResponse.json()) as { items: AssignmentRow[] }).items);
+
+      // The list is capped at 200 rows; the count endpoint is the only source of a real total.
+      if (statsResponse.ok) {
+        setAssignmentTotal(((await statsResponse.json()) as { total: number }).total);
+      }
 
       // The pickers need the same data the server writes against; a failed side request degrades the
       // form (fewer options) but must not blank the table.
@@ -244,7 +251,11 @@ export default function PenugasanPage(): JSX.Element {
               <div>
                 <h2>Daftar Penugasan</h2>
                 <p style={{ fontSize: 12.5, color: "var(--color-muted)", margin: "2px 0 0" }}>
-                  {loading ? "Memuat…" : `${String(sorted.length)} penugasan dalam cakupan Anda.`}
+                  {loading
+                    ? "Memuat…"
+                    : assignmentTotal === null
+                      ? `${String(sorted.length)} penugasan dalam cakupan Anda.`
+                      : `${String(assignmentTotal)} penugasan dalam cakupan Anda${sorted.length < assignmentTotal ? `, menampilkan ${String(sorted.length)} terbaru` : ""}.`}
                 </p>
               </div>
             </div>

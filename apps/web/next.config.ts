@@ -12,6 +12,36 @@ void initOpenNextCloudflareForDev();
  * kept **static-first** so navigation is served from static assets and does not
  * invoke the Worker script — see ADR-0010 (Workers Free 10 ms CPU budget).
  */
+
+/**
+ * The API origin the browser talks to. Derived from the same variable the client reads, so the CSP
+ * cannot drift from where the app actually sends its bearer tokens.
+ */
+const apiOrigin =
+  process.env.NEXT_PUBLIC_API_URL ?? "https://pi-core-api-staging.pmkitera.workers.dev";
+
+/** `https:` → `wss:`, `http:` → `ws:`; the realtime hub upgrades the same host. */
+const realtimeOrigin = apiOrigin.replace(/^http/, "ws");
+
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  // `'unsafe-inline'` is what Next.js needs for the inline bootstrap/flight scripts in a **static**
+  // page. Removing it means a per-response nonce, and a nonce forces dynamic rendering — which is the
+  // CPU cost ADR-0010 exists to avoid. `'unsafe-eval'` is gone: nothing in a production build evals,
+  // and it was only there for dev tooling, which never runs under this header in production.
+  "script-src 'self' 'unsafe-inline'",
+  // Next injects inline `style` attributes; there is no nonce path for those.
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: https:",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  // fetch/SSE go to the API origin, and the realtime WebSocket to the same host over wss:.
+  `connect-src 'self' ${apiOrigin} ${realtimeOrigin}`,
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join("; ");
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
@@ -22,8 +52,7 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: "Content-Security-Policy",
-            value:
-              "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.workers.dev; frame-ancestors 'none';",
+            value: contentSecurityPolicy,
           },
           {
             key: "Strict-Transport-Security",

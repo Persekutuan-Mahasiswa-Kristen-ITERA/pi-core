@@ -24,7 +24,7 @@ PI-CORE is the identity root for all PMK ITERA apps. A flaw here compromises eve
 ## Web/API hardening
 - zod validation on all inputs; reject unknown fields on writes. Parameterized queries only.
 - CSRF protection for cookie-authenticated mutations; strict CORS allowlist (no wildcard with credentials).
-- Security headers: CSP, HSTS, X-Content-Type-Options, Referrer-Policy, frame-ancestors none.
+- Security headers: CSP, HSTS, X-Content-Type-Options, Referrer-Policy, frame-ancestors none. The web app's CSP (`apps/web/next.config.ts`) is built from the configured API origin: `script-src 'self' 'unsafe-inline'` (a static Next.js page needs inline bootstrap scripts; a nonce would force dynamic rendering and the CPU cost ADR-0010 avoids), `connect-src 'self' <api origin> <wss api origin>`, `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`. **`'unsafe-eval'` is not allowed** — it was only ever there for dev tooling.
 - Rate limiting on login/callback/token/write endpoints; request size limits.
 - OIDC provider: exact-match redirect URIs, PKCE required, short-lived auth codes, no implicit flow, key rotation plan for JWKS, audience-restricted tokens.
 

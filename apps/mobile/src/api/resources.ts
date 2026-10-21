@@ -197,34 +197,23 @@ export async function fetchDashboardSummary(): Promise<DashboardSummary> {
 /**
  * Assignments grouped by the **type** of the unit they sit in, for the structure report.
  *
- * The list payload carries `orgUnitId` but not the unit's type, so the types come from `/org-units`
- * and are joined here. `isFloor` marks the case where the assignment page was full: the counts are
- * then "at least", never presented as exact.
+ * `GET /api/v1/assignments/stats` counts in SQL over the same scope predicate as the list, so these are
+ * real totals — the list endpoint caps at 200 rows, and counting a page would report "at least N".
  */
 export interface AssignmentStats {
   total: number;
   byUnitType: Record<string, number>;
-  isFloor: boolean;
 }
 
 export async function fetchAssignmentStats(): Promise<AssignmentStats> {
-  const [assignmentPage, unitPage] = await Promise.all([
-    getJson<{ items: Array<{ orgUnitId: string }>; nextCursor: string | null }>(
-      "/api/v1/assignments?limit=200",
-    ),
-    fetchOrgUnits(),
-  ]);
+  const body = await getJson<{ total: number; byUnitType: Array<{ unitType: string; count: number }> }>(
+    "/api/v1/assignments/stats",
+  );
 
-  const typeOf = new Map(unitPage.items.map((unit) => [unit.id, unit.type]));
   const byUnitType: Record<string, number> = {};
-  for (const assignment of assignmentPage.items) {
-    const type = typeOf.get(assignment.orgUnitId) ?? "unknown";
-    byUnitType[type] = (byUnitType[type] ?? 0) + 1;
+  for (const entry of body.byUnitType) {
+    byUnitType[entry.unitType] = entry.count;
   }
 
-  return {
-    total: assignmentPage.items.length,
-    byUnitType,
-    isFloor: assignmentPage.nextCursor !== null,
-  };
+  return { total: body.total, byUnitType };
 }
