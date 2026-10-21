@@ -142,33 +142,87 @@ Produksi dan URL `workers.dev` menunjuk **baris data yang sama**. Artinya:
 
 ### 3.1 Prasyarat DNS: zona harus pindah ke Cloudflare
 
-Ini bagian yang tidak bisa dilewati. Custom domain Worker hanya bekerja bila **nameserver** domain
-diarahkan ke Cloudflare. Kondisi `pmkitera.web.id` pada 2026-10-21:
+Custom domain Worker hanya bisa dibuat pada zona yang **di-host Cloudflare** — dokumentasinya tegas:
+*"You cannot create a Custom Domain on a hostname with an existing CNAME DNS record or on a zone you do
+not own."* Sekarang zona ini ada di **Rumahweb**, jadi langkah ini tidak bisa dilewati.
 
-| Yang diperiksa | Hasil |
-|---|---|
-| Nameserver | `nsid1-4.rumahweb.*` (Rumahweb, bukan Cloudflare) |
-| `pmkitera.web.id` (apex) | `216.198.79.1` — Vercel |
-| `www.pmkitera.web.id` | CNAME ke `*.vercel-dns-017.com` — Vercel |
-| `form.pmkitera.web.id` | CNAME ke `*.vercel-dns-017.com` — Vercel |
-| MX / TXT | **tidak ada** (domain ini tidak dipakai untuk email) |
-| `core.` dan `api.core.` | belum ada record |
+**Pemegang akun domain adalah dosen pembina, bukan Anda.** Perubahan nameserver hanya bisa dilakukan
+dari akun Rumahweb beliau, jadi ini pekerjaan terkoordinasi, bukan pekerjaan teknis di repo ini.
 
-Karena tidak ada MX/TXT, risiko pindah nameserver hanya soal web. Langkahnya:
+#### Keadaan zona pada 2026-10-21 (dibaca dari DNS publik)
 
-1. Cloudflare dashboard → **Add a site** → `pmkitera.web.id` → pakai plan **Free**.
-2. Cloudflare menyalin record yang terdeteksi. **Cocokkan manual** dengan tabel di atas, dan buat
-   record Vercel sebagai **DNS only** (awan abu-abu, bukan oranye) supaya sertifikat tetap di Vercel:
-   - `A  @    216.198.79.1` (DNS only)
-   - `CNAME  www  727575dc1622d2f4.vercel-dns-017.com` (DNS only)
-   - `CNAME  form 719527a5f707eded.vercel-dns-017.com` (DNS only)
-3. Cloudflare memberi dua nameserver. Di panel Rumahweb, ganti NS domain ke keduanya.
-4. Tunggu propagasi (biasanya < 1 jam). Cek: `dig +short NS pmkitera.web.id` harus menampilkan
-   `*.ns.cloudflare.com`.
-5. Pastikan situs lama masih hidup: `https://pmkitera.web.id` dan `https://form.pmkitera.web.id`.
+| Hostname | Record | Tujuan | Aplikasi |
+|---|---|---|---|
+| `pmkitera.web.id` | A | `216.198.79.1` | situs utama |
+| `www.pmkitera.web.id` | CNAME | `727575dc1622d2f4.vercel-dns-017.com` | www |
+| `form.pmkitera.web.id` | CNAME | `719527a5f707eded.vercel-dns-017.com` | PMK FORM |
+| `ark.pmkitera.web.id` | CNAME | `e287050dcefcf297.vercel-dns-017.com` | PI-ARK |
+| `s.pmkitera.web.id` | CNAME | `c6b5b8e9c21d723b.vercel-dns-017.com` | PMK S |
+| `core.`, `api.core.` | — | belum ada | PI-CORE (baru) |
+| MX / TXT | — | **tidak ada** | domain ini tidak dipakai untuk email |
 
-Sampai langkah ini selesai, `wrangler deploy --env production` akan gagal dengan pesan bahwa zona tidak
-ditemukan. Itu bukan bug konfigurasi.
+Semua aplikasi lama tetap di Vercel. Yang berubah hanya siapa yang menjawab pertanyaan DNS. Aplikasi
+PI-ARK dan lainnya **tidak boleh disentuh** (`AGENTS.md`), jadi record-nya hanya **disalin persis**.
+
+#### Langkah cutover
+
+**[SEBELUM]** Jalankan pemeriksaan keadaan awal:
+
+```bash
+pnpm check:dns
+```
+
+Semua baris harus `✓` untuk empat situs lama, dan `·` untuk `core.`/`api.core.` (belum ada). Kalau ada
+`✗` di tahap ini, jangan mulai cutover — catat dulu penyebabnya.
+
+**1. Siapkan zona di Cloudflare (tanpa menyentuh DNS publik).**
+   - Cloudflare dashboard → **Add a site** → `pmkitera.web.id` → plan **Free**.
+   - Cloudflare memindai record yang ada. Bandingkan dengan tabel di atas dan **lengkapi manual**.
+     Record yang menunjuk Vercel wajib **DNS only (awan abu-abu)**. Kalau di-proxy (oranye), Vercel
+     kehilangan verifikasi domain dan sertifikatnya — ini kesalahan paling umum saat orang memindahkan
+     zona Vercel ke Cloudflare.
+   - Zona akan berstatus **Pending**; belum ada dampak apa pun pada pengunjung.
+
+**2. Minta dosen pembina mengganti nameserver.** Kirim pesan ini (bisa disalin apa adanya):
+
+> Selamat pagi/siang Pak, saya Febrian (pengurus PMK ITERA). Kami sedang memindahkan pengelolaan DNS
+> `pmkitera.web.id` dari Rumahweb ke Cloudflare, supaya layanan PMK bisa memakai Cloudflare Workers dan
+> domainnya rapi dalam satu tempat. Aplikasi yang sudah ada (situs utama, form, ark, s) tetap jalan di
+> Vercel — hanya server DNS-nya yang pindah, dan record-nya sudah kami siapkan identik.
+> Yang perlu Bapak lakukan di akun Rumahweb: menu domain → **Nameserver / DNS** → ganti menjadi:
+> `____.ns.cloudflare.com` dan `____.ns.cloudflare.com` (saya kirimkan dua nama ini setelah zona dibuat).
+> Tidak ada biaya dan tidak ada perubahan pada masa aktif domain. Terima kasih, Pak.
+
+   Catatan: dua nama nameserver itu muncul di dashboard Cloudflare (menu **Overview**) setelah langkah 1.
+
+**3. Setelah nameserver diganti**, cek propagasi. Biasanya di bawah satu jam:
+
+```bash
+dig +short NS pmkitera.web.id      # harus *.ns.cloudflare.com
+pnpm check:dns --after-cutover     # NS, empat situs lama, dan dua hostname PI-CORE
+```
+
+**[SESUDAH]** Semua baris harus `✓`, termasuk `https://` untuk kelima hostname lama dan dua hostname
+PI-CORE baru (yang baru menjawab setelah Worker di-deploy pada §3.6).
+
+**4. Kalau ada yang rusak**, rollback-nya satu langkah: minta dosen mengembalikan nameserver Rumahweb
+seperti semula (`nsid1.rumahweb.com`, `nsid2.rumahweb.net`, `nsid3.rumahweb.biz`, `nsid4.rumahweb.org`).
+Zona Cloudflare yang Pending tidak mengubah apa pun, jadi rollback tidak meninggalkan kerusakan.
+
+#### Kenapa Cloudflare, dan apa risikonya
+
+Yang didapat: PI-CORE bisa memakai Workers dengan domain sendiri (syarat teknis, bukan selera); DNS,
+sertifikat, cache, R2, dan Worker berada di satu dashboard; Cloudflare Access (gratis sampai 50 pengguna)
+bisa dipakai untuk menutup URL uji dari publik; tidak ada biaya tambahan di plan Free.
+
+Risiko yang harus dijaga:
+
+- **Akun Cloudflare = kendali penuh atas domain.** Pakai email organisasi (`biroitpmkitera@gmail.com`),
+  aktifkan 2FA, dan simpan kode pemulihan di tempat yang dipegang pengurus, bukan hanya di satu HP.
+  Plan Free tidak punya fitur multi-user, jadi berbagi akses berarti berbagi akun.
+- **Domain tetap di Rumahweb.** Cloudflare tidak menggantikan registrar; perpanjangan tetap urusan
+  pembina. Catat tanggal kedaluwarsa domain di salah satu dokumen organisasi.
+- **Jangan proxy record Vercel.** Selama tiga aplikasi lain masih di Vercel, record-nya harus DNS only.
 
 ### 3.2 Resource: tidak ada yang perlu dibuat
 

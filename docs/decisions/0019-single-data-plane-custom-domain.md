@@ -15,11 +15,13 @@ Verified facts that shape this decision (2026-10-21):
 - The staging Supabase project and its Hyperdrive config (`afcb66f5…`) already hold the real organization
   data; there is no separate "production data" anywhere.
 - R2 bucket `pmk-core-avatars` is the only bucket.
-- The domain's nameservers are **Rumahweb** (`nsid1-4.rumahweb.*`), and the existing site + `form.` are on
-  **Vercel** (`216.198.79.1`, `*.vercel-dns-017.com`). Cloudflare Workers custom domains require the zone
-  to be hosted on Cloudflare, so a nameserver move is a prerequisite, not a detail.
-- The zone currently carries **no MX and no TXT records** — the move to Cloudflare risks web delivery only,
-  not email.
+- The domain's nameservers are **Rumahweb** (`nsid1-4.rumahweb.*`), held by the organization's academic
+  supervisor, and the zone serves **five** Vercel hostnames: `pmkitera.web.id` (A `216.198.79.1`), `www`,
+  `form`, `ark` and `s` (CNAMEs to `*.vercel-dns-017.com`). Cloudflare Workers custom domains require the
+  zone to be hosted on Cloudflare ("…or on a zone you do not own"), so a nameserver move — requested from
+  the supervisor — is a prerequisite, not a detail. The move does not touch those applications: their
+  records are reproduced identically, DNS-only, so Vercel keeps terminating TLS.
+- The zone carries **no MX and no TXT records** — the move risks web delivery only, not email.
 
 ## Decision
 

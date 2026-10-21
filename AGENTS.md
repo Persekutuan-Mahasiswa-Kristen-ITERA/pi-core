@@ -65,6 +65,7 @@ Verified on 2026-10-15 (Node 26 / pnpm 10.20.0). Run from the repo root.
 | Lint                   | `pnpm -r lint`                                                             | Shared ESLint flat config from `@pi-core/config` |
 | Test                   | `pnpm -r test`                                                             | shared 96 (vitest), api 96 (vitest), web 52 (vitest/jsdom), mobile 31 (jest-expo) |
 | Production preflight   | `pnpm check:production`                                                    | reads config + secret **names**; exits 1 while anything is unconfigured/staging-shaped |
+| DNS cutover check      | `pnpm check:dns` (add `--after-cutover`)                                   | zone at Rumahweb or Cloudflare, 5 Vercel hosts, `core`/`api.core`, MX/TXT |
 | Test (mobile only)     | `pnpm --filter @pi-core/mobile test`                                        | jest-expo; renders screens headlessly, no device or Metro |
 | Export mobile bundle   | `pnpm --filter @pi-core/mobile exec expo export --platform android`         | Proves the app graph builds; needs no device |
 | Preview app in browser | `pnpm --filter @pi-core/mobile exec expo export --platform web` then serve the output dir | Web is a **preview only**: memory-only session, never persisted |

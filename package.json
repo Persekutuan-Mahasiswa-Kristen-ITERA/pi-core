@@ -14,7 +14,8 @@
     "build": "turbo run build",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check:production": "node scripts/check-production-ready.mjs"
+    "check:production": "node scripts/check-production-ready.mjs",
+    "check:dns": "node scripts/check-dns.mjs"
   },
   "devDependencies": {
     "prettier": "^3.6.2",
