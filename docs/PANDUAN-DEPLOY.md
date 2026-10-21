@@ -52,6 +52,10 @@ Secret **tidak pernah** masuk repo, chat, atau log. Semua secret dipasang lewat
 
 ### 2.1 Cek dulu di lokal **[terbukti]**
 
+> Sejak ADR-0019, URL `*.workers.dev` **bukan environment terpisah**: ia hanya alamat uji dari deployment
+> yang sama, dan menulis ke database yang sama dengan produksi. Perlakukan setiap percobaan di sana
+> sebagai percobaan pada data asli.
+
 ```bash
 pnpm install
 pnpm -r typecheck        # harus "Done" untuk 6 package
@@ -123,25 +127,64 @@ pnpm --filter @pi-core/api exec wrangler rollback <VERSION_ID> --env staging
 > Aturan keras: deploy produksi dan migrasi produksi **hanya** setelah persetujuan eksplisit pemilik
 > di percakapan. Jangan pernah dijalankan otomatis.
 
-### 3.1 Siapkan resource (sekali saja)
+Keputusan pemilik (2026-10-21, ADR-0019): **tidak ada project Supabase baru, bucket R2 baru, atau
+pasukan Worker baru.** Produksi memakai database, Hyperdrive, dan bucket yang sudah ada, lalu dibuka di
+`core.pmkitera.web.id` dan `api.core.pmkitera.web.id`.
 
-a) **Supabase produksi** — buat project baru (jangan pakai project staging), ambil connection string
-langsung (port 5432) dari dashboard Supabase.
+### 3.0 Yang harus dipahami lebih dulu: database-nya satu
 
-b) **Hyperdrive produksi** **[tertulis]**:
+Produksi dan URL `workers.dev` menunjuk **baris data yang sama**. Artinya:
 
-```bash
-pnpm --filter @pi-core/api exec wrangler hyperdrive create pi-core-prod \
-  --connection-string="postgres://USER:PASSWORD@HOST:5432/postgres"
-```
+- Setiap percobaan di URL uji adalah data sungguhan. Tidak ada "data staging" untuk disembunyikan.
+- Migrasi hanya dijalankan sekali, langsung ke data asli, dan praktis tidak bisa dibatalkan. Jalankan
+  dulu di Postgres lokal, dan **backup sebelum migrasi** (`docs/OPERATIONS.md` §6).
+- Satu-satunya jaring pengaman adalah backup + rollback versi Worker, bukan "kembali ke environment lain".
 
-Perintah itu mencetak sebuah **id**. Tempel id itu ke `apps/api/wrangler.jsonc` pada
-`env.production.hyperdrive[0].id` (sekarang masih placeholder `000…0`).
+### 3.1 Prasyarat DNS: zona harus pindah ke Cloudflare
 
-c) **Bucket R2 produksi** **[tertulis]**: buat bucket `pmk-core-avatars-prod`
-(dashboard Cloudflare → R2, atau `wrangler r2 bucket create pmk-core-avatars-prod`).
+Ini bagian yang tidak bisa dilewati. Custom domain Worker hanya bekerja bila **nameserver** domain
+diarahkan ke Cloudflare. Kondisi `pmkitera.web.id` pada 2026-10-21:
 
-d) **Secret di Worker produksi** — 5 nama ini wajib ada **[tertulis]**:
+| Yang diperiksa | Hasil |
+|---|---|
+| Nameserver | `nsid1-4.rumahweb.*` (Rumahweb, bukan Cloudflare) |
+| `pmkitera.web.id` (apex) | `216.198.79.1` — Vercel |
+| `www.pmkitera.web.id` | CNAME ke `*.vercel-dns-017.com` — Vercel |
+| `form.pmkitera.web.id` | CNAME ke `*.vercel-dns-017.com` — Vercel |
+| MX / TXT | **tidak ada** (domain ini tidak dipakai untuk email) |
+| `core.` dan `api.core.` | belum ada record |
+
+Karena tidak ada MX/TXT, risiko pindah nameserver hanya soal web. Langkahnya:
+
+1. Cloudflare dashboard → **Add a site** → `pmkitera.web.id` → pakai plan **Free**.
+2. Cloudflare menyalin record yang terdeteksi. **Cocokkan manual** dengan tabel di atas, dan buat
+   record Vercel sebagai **DNS only** (awan abu-abu, bukan oranye) supaya sertifikat tetap di Vercel:
+   - `A  @    216.198.79.1` (DNS only)
+   - `CNAME  www  727575dc1622d2f4.vercel-dns-017.com` (DNS only)
+   - `CNAME  form 719527a5f707eded.vercel-dns-017.com` (DNS only)
+3. Cloudflare memberi dua nameserver. Di panel Rumahweb, ganti NS domain ke keduanya.
+4. Tunggu propagasi (biasanya < 1 jam). Cek: `dig +short NS pmkitera.web.id` harus menampilkan
+   `*.ns.cloudflare.com`.
+5. Pastikan situs lama masih hidup: `https://pmkitera.web.id` dan `https://form.pmkitera.web.id`.
+
+Sampai langkah ini selesai, `wrangler deploy --env production` akan gagal dengan pesan bahwa zona tidak
+ditemukan. Itu bukan bug konfigurasi.
+
+### 3.2 Resource: tidak ada yang perlu dibuat
+
+| Kebutuhan | Pakai yang sudah ada |
+|---|---|
+| Database | project Supabase yang sama, lewat Hyperdrive `afcb66f59a424787b5117c596edd29dc` |
+| Foto | bucket R2 `pmk-core-avatars` |
+| Worker | `pi-core-api` dan `pi-core-web` (dibuat oleh deploy pertama) |
+
+Konfigurasi produksi sudah ditulis dan sudah lulus pemeriksaan struktur (`pnpm check:production
+--skip-secrets`). Yang menandai database bersama secara eksplisit adalah `"DATA_PLANE": "shared"` di
+`apps/api/wrangler.jsonc` — kalau tanda itu dihapus, preflight menolak (sudah diuji).
+
+### 3.3 Secret (5 nama, nilainya tidak pernah tampil) **[tertulis]**
+
+Diisi **setelah** Worker produksi ada:
 
 ```bash
 pnpm --filter @pi-core/api exec wrangler secret put BETTER_AUTH_SECRET   --env production
@@ -153,10 +196,17 @@ pnpm --filter @pi-core/api exec wrangler secret put R2_SECRET_ACCESS_KEY --env p
 pnpm --filter @pi-core/api exec wrangler secret list --env production   # cek nama saja
 ```
 
-e) **Google Cloud Console**: tambahkan redirect URI produksi ke OAuth client, dan pastikan
-`https://api.core.pmkitera.web.id/api/auth/callback/google` terdaftar.
+`BETTER_AUTH_SECRET` sebaiknya **berbeda** dari yang dipakai URL uji: kalau sama, sesi cookie yang dibuat
+di URL uji juga sah di domain produksi.
 
-### 3.2 Preflight — jangan deploy sebelum ini lulus **[terbukti]**
+### 3.4 Google Cloud Console **[tertulis]**
+
+Tambahkan ke OAuth client (jangan hapus yang lama dulu):
+
+- Authorized redirect URI: `https://api.core.pmkitera.web.id/api/auth/callback/google`
+- Authorized JavaScript origin: `https://core.pmkitera.web.id`
+
+### 3.5 Preflight — jangan deploy sebelum ini lulus **[terbukti]**
 
 ```bash
 pnpm check:production
@@ -164,15 +214,15 @@ pnpm check:production
 
 Script ini hanya membaca konfigurasi dan **nama** secret (tidak pernah nilainya), lalu menolak bila:
 
-- produksi memakai Hyperdrive staging, atau id-nya masih placeholder;
-- ada variabel produksi yang masih menyebut origin `staging` atau `REPLACE`;
-- `BETTER_AUTH_URL` / `CORS_ORIGINS` kosong;
-- `NEXT_PUBLIC_API_URL` tidak sama dengan origin API (browser akan mengirim token ke Worker yang salah);
-- salah satu dari 5 secret di atas hilang.
+- salah satu Worker tidak punya route custom domain;
+- `BETTER_AUTH_URL` bukan host API, atau `CORS_ORIGINS` tidak memuat host web;
+- ada variabel produksi yang masih menyebut `staging` atau `REPLACE`;
+- Hyperdrive id masih placeholder, atau sama dengan staging tanpa `DATA_PLANE: "shared"`;
+- salah satu dari 5 secret belum ada (termasuk saat Worker produksi belum pernah dibuat).
 
-Sekarang ia berhenti di satu hal: **id Hyperdrive masih placeholder**. Itu memang pekerjaan Anda.
+Sekarang ia berhenti di: **Worker produksi belum ada**. Itu memang langkah berikutnya.
 
-### 3.3 Urutan deploy
+### 3.6 Urutan deploy
 
 ```bash
 # 1. Backup database dulu (docs/OPERATIONS.md §6)
@@ -190,14 +240,29 @@ diisi: tanpa itu bundle produksi akan memanggil API staging, dan CSP-nya hanya m
 staging. **[terbukti]** — pemeriksaan ini ditambahkan setelah menemukan bahwa build staging memang
 mengandalkan nilai default.
 
-### 3.4 Checklist setelah deploy produksi
+### 3.7 Checklist setelah deploy produksi
 
 - [ ] `https://api.core.pmkitera.web.id/api/v1/health` → 200
+- [ ] `https://core.pmkitera.web.id` termuat, dan kartu statistik berisi angka (bukan "—")
 - [ ] Login Google dengan akun ITERA sungguhan berhasil, dan peran muncul benar
 - [ ] Satu percobaan **ditolak** juga dicek (mis. akun tanpa izin membuka `/peran` → pesan penolakan)
 - [ ] `/audit-log` mencatat aksi yang baru dilakukan
 - [ ] Tidak ada error di `wrangler tail --env production`
 - [ ] CPU time di bawah batas plan (lihat "Masalah umum" no. 6)
+- [ ] Situs lama tetap hidup: `pmkitera.web.id` dan `form.pmkitera.web.id`
+
+### 3.8 Menutup jalur lama (setelah produksi terbukti jalan)
+
+Setelah semua di atas lulus, Worker lama dihapus supaya hanya ada satu pasang dan tidak ada jalur kedua
+yang menulis ke database yang sama. **Langkah ini butuh persetujuan Anda** (menghapus resource):
+
+```bash
+pnpm --filter @pi-core/api exec wrangler delete --name pi-core-api-staging
+pnpm --filter @pi-core/web exec wrangler delete --name pi-core-web-staging
+```
+
+Worker tidak menyimpan data — data ada di Supabase dan R2 — jadi yang hilang hanya versi kode lama yang
+masih bisa di-deploy ulang dari git kapan saja.
 
 ---
 
@@ -216,6 +281,28 @@ export ANDROID_HOME="$HOME/Android/Sdk"
 ```
 
 Hasil: `apps/mobile/android/app/build/outputs/apk/release/app-release.apk` (±68 MB).
+
+Untuk build yang menunjuk domain produksi (bukan URL uji), alamat API ditanam saat build **[terbukti]**:
+
+```bash
+EXPO_PUBLIC_API_URL=https://api.core.pmkitera.web.id ./gradlew clean assembleRelease
+```
+
+Pitfall yang benar-benar terjadi di sini: Gradle menganggap task bundling "up-to-date" karena perubahan
+variabel environment **tidak** terhitung sebagai input task. `assembleRelease` tanpa `clean` menyelesaikan
+build dalam 14 detik dan **APK-nya masih memanggil URL lama**. `clean` (atau
+`--rerun-tasks`) memaksa JS bundle dibuat ulang; setelah itu bundle berisi
+`api.core.pmkitera.web.id` dan tidak lagi memuat `workers.dev` (sudah dicek dengan `strings` pada bundle).
+
+Cara memastikan sendiri setelah build:
+
+```bash
+unzip -p app/build/outputs/apk/release/app-release.apk assets/index.android.bundle \
+  | strings | grep -o "[a-z0-9.-]*pmkitera[a-z0-9./-]*" | sort -u
+```
+
+Tanpa `EXPO_PUBLIC_API_URL`, aplikasi memakai default di `apps/mobile/src/config.ts` (URL `workers.dev`) —
+masih berfungsi, tapi bukan alamat yang Anda bagikan ke anggota.
 
 Catatan penting:
 

@@ -23,8 +23,18 @@
     },
     "production": {
       "name": "pi-core-web",
+      "routes": [
+        {
+          "pattern": "core.pmkitera.web.id",
+          "custom_domain": true
+        }
+      ],
       "vars": {
-        "ENVIRONMENT": "production"
+        "ENVIRONMENT": "production",
+        // Build-time value, repeated here so `pnpm check:production` can compare it with the API origin.
+        // `NEXT_PUBLIC_*` is inlined into the bundle by `next build`; setting it here does NOT change a
+        // built Worker. The build command must pass it (docs/PANDUAN-DEPLOY.md §3.3).
+        "NEXT_PUBLIC_API_URL": "https://api.core.pmkitera.web.id"
       },
       "observability": {
         "enabled": true

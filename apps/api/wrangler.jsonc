@@ -95,24 +95,31 @@
 		},
 		"production": {
 			"name": "pi-core-api",
+			"routes": [
+				{
+					"pattern": "api.core.pmkitera.web.id",
+					"custom_domain": true
+				}
+			],
 			"vars": {
 				"ENVIRONMENT": "production",
 				"BETTER_AUTH_URL": "https://api.core.pmkitera.web.id",
 				"MOBILE_REDIRECT_URIS": "picore://auth",
-				"CORS_ORIGINS": "https://core.pmkitera.web.id",
-				"AVATAR_BUCKET": "pmk-core-avatars-prod",
-				"R2_ACCOUNT_ID": "a45092ffd0f9ad41070ed8c57d938052"
+				"CORS_ORIGINS": "https://core.pmkitera.web.id,https://pi-core-web.pmkitera.workers.dev",
+				"AVATAR_BUCKET": "pmk-core-avatars",
+				"R2_ACCOUNT_ID": "a45092ffd0f9ad41070ed8c57d938052",
+				"DATA_PLANE": "shared"
 			},
 			"r2_buckets": [
 				{
 					"binding": "AVATARS",
-					"bucket_name": "pmk-core-avatars-prod"
+					"bucket_name": "pmk-core-avatars"
 				}
 			],
 			"hyperdrive": [
 				{
 					"binding": "HYPERDRIVE",
-					"id": "00000000000000000000000000000000"
+					"id": "afcb66f59a424787b5117c596edd29dc"
 				}
 			],
 			"triggers": {
