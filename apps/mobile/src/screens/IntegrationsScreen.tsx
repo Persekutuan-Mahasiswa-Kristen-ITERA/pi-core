@@ -17,8 +17,10 @@ type Integration = {
   lastAuthorizedAt: string | null;
 };
 
+type IntegrationState = "loading" | "ready" | "error" | "forbidden" | "offline" | "unauthorized";
+
 export function IntegrationsScreen() {
-  const [state, setState] = useState<"loading" | "ready" | "error" | "forbidden" | "offline">("loading");
+  const [state, setState] = useState<IntegrationState>("loading");
   const [items, setItems] = useState<Integration[]>([]);
 
   const load = useCallback(async () => {
@@ -26,11 +28,23 @@ export function IntegrationsScreen() {
     try {
       const headers = await authHeaders();
       const response = await fetch(`${API_URL}/api/v1/integrations`, { headers });
-      if (response.status === 401 || response.status === 403) {
-        setState(response.status === 403 ? "forbidden" : "error");
+      // 401 and 403 are different answers and deserve different sentences: an expired session is fixed
+      // by signing in again, a refusal is not. Reporting 401 as "data unavailable" sends the reader to
+      // retry a request that will never succeed.
+      if (response.status === 401) {
+        setState("unauthorized");
         return;
       }
-      if (!response.ok) throw new Error("integration request failed");
+      if (response.status === 403) {
+        setState("forbidden");
+        return;
+      }
+      if (!response.ok) {
+        // A 5xx means the request arrived and failed, which is not the same as no connection — saying
+        // "periksa koneksi" for a server error sends the reader to fix something that is not broken.
+        setState("error");
+        return;
+      }
       const body = (await response.json()) as { items?: Integration[] };
       setItems(body.items ?? []);
       setState("ready");

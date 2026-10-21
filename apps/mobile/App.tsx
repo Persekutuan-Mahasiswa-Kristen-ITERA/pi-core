@@ -362,7 +362,7 @@ function Dashboard({ onOpenDirectory }: { onOpenDirectory: () => void }) {
   );
 }
 
-function ReportsScreen() {
+export function ReportsScreen() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [assignments, setAssignments] = useState<AssignmentStats | null>(null);
   const [failed, setFailed] = useState(false);
@@ -429,7 +429,7 @@ function ReportsScreen() {
   );
 }
 
-function ProfileScreen({ onSignOut }: { onSignOut: () => void }) {
+export function ProfileScreen({ onSignOut }: { onSignOut: () => void }) {
   const [profile, setProfile] = useState<OwnProfile | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "offline" | "unauthorized" | "error">("loading");
 
