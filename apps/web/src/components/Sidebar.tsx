@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   CalendarRange,
   Briefcase,
+  Plug,
   Settings,
   Activity,
   CheckCircle2,
@@ -21,6 +22,7 @@ const navItems = [
   { href: "/peran", icon: ShieldCheck, label: "Peran & Akses" },
   { href: "/periode", icon: CalendarRange, label: "Periode" },
   { href: "/penugasan", icon: Briefcase, label: "Penugasan" },
+  { href: "/integrations", icon: Plug, label: "Integrasi" },
   { href: "/pengaturan", icon: Settings, label: "Pengaturan" },
   { href: "/audit-log", icon: Activity, label: "Audit Log" },
 ];
