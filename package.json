@@ -18,8 +18,8 @@
     "check:dns": "node scripts/check-dns.mjs"
   },
   "devDependencies": {
-    "prettier": "^3.6.2",
-    "turbo": "^2.5.6",
+    "prettier": "^3.10.1",
+    "turbo": "^2.11.11",
     "typescript": "^5.9.2"
   },
   "pnpm": {
